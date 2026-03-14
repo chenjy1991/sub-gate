@@ -11,7 +11,14 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm build
-RUN npx esbuild lib/db/seed.ts --bundle --platform=node --outfile=seed.js --external:better-sqlite3
+RUN pnpm add -D esbuild && npx esbuild lib/db/seed.ts --bundle --platform=node --outfile=seed.js --external:better-sqlite3
+# 把 better-sqlite3 及其依赖打成一个干净的 node_modules 供 runner 使用
+RUN mkdir -p /seed-deps/node_modules && \
+    cp -r node_modules/better-sqlite3 /seed-deps/node_modules/ && \
+    cp -r node_modules/.pnpm/better-sqlite3*/node_modules/* /seed-deps/node_modules/ 2>/dev/null || true && \
+    cp -r node_modules/.pnpm/bindings*/node_modules/* /seed-deps/node_modules/ 2>/dev/null || true && \
+    cp -r node_modules/.pnpm/file-uri-to-path*/node_modules/* /seed-deps/node_modules/ 2>/dev/null || true && \
+    cp -r node_modules/.pnpm/prebuild-install*/node_modules/* /seed-deps/node_modules/ 2>/dev/null || true
 
 FROM node:20-alpine AS runner
 WORKDIR /app
@@ -22,10 +29,7 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/seed.js ./seed.js
-COPY --from=builder /app/node_modules/better-sqlite3 ./node_modules/better-sqlite3
-COPY --from=builder /app/node_modules/bindings ./node_modules/bindings
-COPY --from=builder /app/node_modules/prebuild-install ./node_modules/prebuild-install
-COPY --from=builder /app/node_modules/file-uri-to-path ./node_modules/file-uri-to-path
+COPY --from=builder /seed-deps/node_modules ./node_modules
 COPY docker-entrypoint.sh ./
 
 RUN chmod +x docker-entrypoint.sh && mkdir -p data && chown nextjs:nodejs data
