@@ -1,0 +1,10 @@
+services:
+  app:
+    image: chenjy0580/sub-gate:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - JWT_SECRET=sub-admin-jwt-secret-key-2024
+    restart: unless-stopped

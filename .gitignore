@@ -1,0 +1,10 @@
+node_modules/
+.next/
+data/
+*.db
+*.db-wal
+*.db-shm
+*.tsbuildinfo
+.DS_Store
+.pnpmrc.json
+next-env.d.ts

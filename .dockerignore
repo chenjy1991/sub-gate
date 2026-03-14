@@ -1,0 +1,12 @@
+node_modules
+.next
+data
+.git
+.DS_Store
+*.md
+specs
+deploy.sh
+.env
+*.db
+*.db-wal
+*.db-shm
