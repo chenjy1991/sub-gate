@@ -219,6 +219,7 @@ export default function SubscriptionDetailPage() {
                     <TableHead>协议</TableHead>
                     <TableHead>传输</TableHead>
                     <TableHead>TLS</TableHead>
+                    <TableHead>状态</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -230,6 +231,9 @@ export default function SubscriptionDetailPage() {
                       <TableCell className="text-zinc-500">{node.network || '-'}</TableCell>
                       <TableCell>
                         <Badge variant={node.tls === 1 ? 'default' : 'secondary'}>{node.tls === 1 ? '是' : '否'}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={node.status === 1 ? 'default' : 'secondary'}>{node.status === 1 ? '启用' : '禁用'}</Badge>
                       </TableCell>
                     </TableRow>
                   ))}

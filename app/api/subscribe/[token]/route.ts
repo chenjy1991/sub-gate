@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { sysUser, sysSubscription, sysSubscriptionNode, sysSubscriptionRole, sysSubscriptionUser, sysUserRole, sysNode } from '@/lib/db/schema'
-import { eq, inArray } from 'drizzle-orm'
+import { eq, inArray, and } from 'drizzle-orm'
 import { generateBase64, generateClash, generateSurge, generateQuantumultX } from '@/lib/node/subscription'
 
 export async function GET(
@@ -75,7 +75,7 @@ export async function GET(
     .map(r => r.nodeId)
 
   const nodes = nodeIds.length > 0
-    ? db.select().from(sysNode).where(inArray(sysNode.id, nodeIds)).all()
+    ? db.select().from(sysNode).where(and(inArray(sysNode.id, nodeIds), eq(sysNode.status, 1))).all()
     : []
 
   // Generate content based on type

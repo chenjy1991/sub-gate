@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getNodes, deleteNode, parseLinks, importNodes, checkNode, generateLink } from '@/services/nodes'
+import { getNodes, deleteNode, parseLinks, importNodes, checkNode, generateLink, updateNode } from '@/services/nodes'
 import type { ProxyNode, ParseResult } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -52,6 +53,7 @@ export default function NodeListPage() {
   const [linkText, setLinkText] = useState('')
   const [linkLoading, setLinkLoading] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
 
   const pageSize = 10
 
@@ -158,6 +160,16 @@ export default function NodeListPage() {
     }
   }
 
+  const handleToggleStatus = async (id: string, currentStatus: number) => {
+    setTogglingId(id)
+    try {
+      await updateNode({ id, status: currentStatus === 1 ? 0 : 1 })
+      fetchNodes()
+    } finally {
+      setTogglingId(null)
+    }
+  }
+
   const handleCopyLink = async () => {
     await navigator.clipboard.writeText(linkText)
     setCopied(true)
@@ -234,9 +246,11 @@ export default function NodeListPage() {
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={node.status === 1 ? 'default' : 'secondary'}>
-                    {node.status === 1 ? '启用' : '禁用'}
-                  </Badge>
+                  <Switch
+                    checked={node.status === 1}
+                    disabled={togglingId === node.id}
+                    onCheckedChange={() => handleToggleStatus(node.id, node.status)}
+                  />
                 </TableCell>
                 <TableCell>
                   {(() => {

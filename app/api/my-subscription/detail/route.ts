@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { sysSubscription, sysSubscriptionNode, sysSubscriptionRole, sysSubscriptionUser, sysUserRole, sysNode } from '@/lib/db/schema'
 import { ok, fail } from '@/lib/result'
 import { getAuthFromCookie } from '@/lib/auth'
-import { eq, inArray } from 'drizzle-orm'
+import { eq, inArray, and } from 'drizzle-orm'
 
 export async function POST(request: NextRequest) {
   const auth = await getAuthFromCookie()
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     .map(r => r.nodeId)
 
   const nodes = nodeIds.length > 0
-    ? db.select().from(sysNode).where(inArray(sysNode.id, nodeIds)).all()
+    ? db.select().from(sysNode).where(and(inArray(sysNode.id, nodeIds), eq(sysNode.status, 1))).all()
     : []
 
   return ok({

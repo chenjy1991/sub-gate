@@ -13,7 +13,7 @@ export function createNode(data: Omit<ProxyNode, 'id'>): Promise<void> {
   return request('/api/node/create', { method: 'POST', body: JSON.stringify(data) })
 }
 
-export function updateNode(data: ProxyNode): Promise<void> {
+export function updateNode(data: Partial<ProxyNode> & { id: string }): Promise<void> {
   return request('/api/node/update', { method: 'POST', body: JSON.stringify(data) })
 }
 

@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getSubscriptions, deleteSubscription } from '@/services/subscriptions'
+import { getSubscriptions, deleteSubscription, updateSubscription } from '@/services/subscriptions'
 import type { Subscription } from '@/types'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
@@ -23,6 +23,7 @@ export default function SubscriptionListPage() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
   const pageSize = 10
 
   const fetchList = async () => {
@@ -43,6 +44,16 @@ export default function SubscriptionListPage() {
     await deleteSubscription(deleteId)
     setDeleteId(null)
     fetchList()
+  }
+
+  const handleToggleStatus = async (id: string, currentStatus: number) => {
+    setTogglingId(id)
+    try {
+      await updateSubscription({ id, status: currentStatus === 1 ? 0 : 1 })
+      fetchList()
+    } finally {
+      setTogglingId(null)
+    }
   }
 
   return (
@@ -79,9 +90,11 @@ export default function SubscriptionListPage() {
                 <TableCell className="font-medium">{sub.name}</TableCell>
                 <TableCell className="text-zinc-500">{sub.remark || '-'}</TableCell>
                 <TableCell>
-                  <Badge variant={sub.status === 1 ? 'default' : 'secondary'}>
-                    {sub.status === 1 ? '启用' : '禁用'}
-                  </Badge>
+                  <Switch
+                    checked={sub.status === 1}
+                    disabled={togglingId === sub.id}
+                    onCheckedChange={() => handleToggleStatus(sub.id, sub.status)}
+                  />
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">

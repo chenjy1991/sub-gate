@@ -1,8 +1,8 @@
 import { db } from '@/lib/db'
-import { sysSubscription, sysSubscriptionNode, sysSubscriptionRole, sysSubscriptionUser, sysUserRole } from '@/lib/db/schema'
+import { sysSubscription, sysSubscriptionNode, sysSubscriptionRole, sysSubscriptionUser, sysUserRole, sysNode } from '@/lib/db/schema'
 import { ok, fail } from '@/lib/result'
 import { getAuthFromCookie } from '@/lib/auth'
-import { eq, inArray, sql } from 'drizzle-orm'
+import { eq, inArray, sql, and } from 'drizzle-orm'
 
 export async function POST() {
   const auth = await getAuthFromCookie()
@@ -52,7 +52,8 @@ export async function POST() {
     const [{ count }] = db
       .select({ count: sql<number>`count(*)` })
       .from(sysSubscriptionNode)
-      .where(eq(sysSubscriptionNode.subscriptionId, sub.id))
+      .innerJoin(sysNode, eq(sysSubscriptionNode.nodeId, sysNode.id))
+      .where(and(eq(sysSubscriptionNode.subscriptionId, sub.id), eq(sysNode.status, 1)))
       .all()
 
     return {

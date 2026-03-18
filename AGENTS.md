@@ -222,5 +222,6 @@ docker run -d -p 3000:3000 -v ./data:/app/data image-name  # 单行启动
 | 008 | 我的订阅 | `specs/008-my-subscription/` |
 | 009 | 权限管理 | `specs/009-permission/` |
 | 010 | Next.js 全栈迁移 | `specs/010-nextjs-migration/` |
+| 011 | 状态切换功能 | `specs/011-status-toggle/` |
 
 新增功能时，按 `{编号}-{功能名}/` 格式创建目录，编号递增。
