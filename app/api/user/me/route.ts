@@ -2,13 +2,15 @@ import { db } from '@/lib/db'
 import { ok, fail } from '@/lib/result'
 import { sysUser, sysUserRole, sysRole } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
-import { getAuthFromCookie } from '@/lib/auth'
+import { requireRequestAuth } from '@/lib/api/auth'
 
 export async function POST() {
-  const auth = await getAuthFromCookie()
-  if (!auth) {
-    return fail('未登录')
+  const guard = await requireRequestAuth()
+  if (guard.response) {
+    return guard.response
   }
+
+  const auth = guard.auth
 
   const user = db.select({
     id: sysUser.id,

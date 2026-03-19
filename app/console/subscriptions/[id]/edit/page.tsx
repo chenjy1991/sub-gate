@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { getSubscriptionById, updateSubscription } from '@/services/subscriptions'
 import { getNodes } from '@/services/nodes'
-import type { ProxyNode } from '@/types'
+import type { EntityId, ProxyNode } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -32,7 +32,7 @@ export default function SubscriptionEditPage() {
   const { id } = useParams<{ id: string }>()
   const [loading, setLoading] = useState(true)
   const [allNodes, setAllNodes] = useState<ProxyNode[]>([])
-  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([])
+  const [selectedNodeIds, setSelectedNodeIds] = useState<EntityId[]>([])
 
   const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -45,7 +45,7 @@ export default function SubscriptionEditPage() {
 
   useEffect(() => {
     if (!id) return
-    getSubscriptionById(id).then(data => {
+    getSubscriptionById(Number(id)).then(data => {
       setValue('name', data.name)
       setValue('remark', data.remark || '')
       setValue('status', String(data.status))
@@ -54,7 +54,7 @@ export default function SubscriptionEditPage() {
     })
   }, [id, setValue])
 
-  const toggleNode = (nodeId: string) => {
+  const toggleNode = (nodeId: EntityId) => {
     setSelectedNodeIds(prev =>
       prev.includes(nodeId) ? prev.filter(nid => nid !== nodeId) : [...prev, nodeId]
     )
@@ -62,7 +62,7 @@ export default function SubscriptionEditPage() {
 
   const onSubmit = async (data: FormData) => {
     await updateSubscription({
-      id,
+      id: Number(id),
       name: data.name,
       remark: data.remark || '',
       status: Number(data.status),

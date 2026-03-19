@@ -6,10 +6,10 @@ interface ResultData<T> {
   data: T | null
 }
 
-export function ok<T>(data?: T): NextResponse<ResultData<T>> {
+export function ok<T>(data?: T, msg = 'ok'): NextResponse<ResultData<T>> {
   return NextResponse.json({
     code: 0,
-    msg: 'ok',
+    msg,
     data: data ?? null,
   })
 }
@@ -26,6 +26,13 @@ export function unauthorized(): NextResponse<ResultData<null>> {
   return NextResponse.json(
     { code: 1, msg: '未登录或登录已过期', data: null },
     { status: 401 }
+  )
+}
+
+export function forbidden(msg = '无权限执行该操作'): NextResponse<ResultData<null>> {
+  return NextResponse.json(
+    { code: 1, msg, data: null },
+    { status: 403 }
   )
 }
 

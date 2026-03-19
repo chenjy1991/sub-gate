@@ -31,7 +31,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
-  const [userId, setUserId] = useState('')
+  const [userId, setUserId] = useState<number | null>(null)
   const [profileSuccess, setProfileSuccess] = useState(false)
   const [pwdSuccess, setPwdSuccess] = useState(false)
   const [pwdError, setPwdError] = useState('')
@@ -48,13 +48,14 @@ export default function SettingsPage() {
     getMe().then(user => {
       setUsername(user.username)
       setEmail(user.email)
-      setUserId(String(user.id))
+      setUserId(user.id)
       profileForm.setValue('nickname', user.nickname || '')
       setLoading(false)
     })
   }, [profileForm])
 
   const onProfileSubmit = async (data: ProfileFormData) => {
+    if (userId === null) return
     setProfileSuccess(false)
     await updateUser({ id: userId, nickname: data.nickname })
     const store = useAuthStore.getState()

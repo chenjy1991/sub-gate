@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { createSubscription } from '@/services/subscriptions'
 import { getNodes } from '@/services/nodes'
-import type { ProxyNode } from '@/types'
+import type { EntityId, ProxyNode } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -30,7 +30,7 @@ type FormData = z.infer<typeof schema>
 export default function SubscriptionNewPage() {
   const router = useRouter()
   const [allNodes, setAllNodes] = useState<ProxyNode[]>([])
-  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([])
+  const [selectedNodeIds, setSelectedNodeIds] = useState<EntityId[]>([])
 
   const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -41,7 +41,7 @@ export default function SubscriptionNewPage() {
     getNodes({ page: 1, size: 1000 }).then(res => setAllNodes(res.list))
   }, [])
 
-  const toggleNode = (nodeId: string) => {
+  const toggleNode = (nodeId: EntityId) => {
     setSelectedNodeIds(prev =>
       prev.includes(nodeId) ? prev.filter(id => id !== nodeId) : [...prev, nodeId]
     )

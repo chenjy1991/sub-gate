@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -56,7 +56,7 @@ export default function EditNodePage() {
     defaultValues: { tls: '0', status: '1', protocol: 'vmess', network: 'tcp' },
   })
 
-  const fillForm = (node: Partial<ProxyNode>) => {
+  const fillForm = useCallback((node: Partial<ProxyNode>) => {
     if (node.name != null) setValue('name', node.name)
     if (node.address != null) setValue('address', node.address)
     if (node.port != null) setValue('port', node.port)
@@ -71,16 +71,16 @@ export default function EditNodePage() {
     if (node.host != null) setValue('host', node.host || '')
     if (node.remark != null) setValue('remark', node.remark || '')
     if (node.status != null) setValue('status', String(node.status))
-  }
+  }, [setValue])
 
   useEffect(() => {
     if (!id) return
-    getNodeById(id).then(node => {
+    getNodeById(Number(id)).then(node => {
       setNodeData(node)
       fillForm(node)
       setLoading(false)
     })
-  }, [id])
+  }, [id, fillForm])
 
   const onSubmit = async (data: FormData) => {
     if (!nodeData) return

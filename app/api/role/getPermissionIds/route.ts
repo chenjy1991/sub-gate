@@ -1,16 +1,28 @@
 import { NextRequest } from 'next/server'
+import { requireRequestAuth } from '@/lib/api/auth'
+import { createIdSchema, parseJsonBody } from '@/lib/api/validation'
 import { db } from '@/lib/db'
-import { ok, fail } from '@/lib/result'
+import { ok } from '@/lib/result'
 import { sysRolePermission } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
+import { z } from 'zod'
+
+const getPermissionIdsSchema = z.object({
+  roleId: createIdSchema('角色ID'),
+})
 
 export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const { roleId } = body
-
-  if (!roleId) {
-    return fail('缺少角色ID')
+  const guard = await requireRequestAuth('role:assign')
+  if (guard.response) {
+    return guard.response
   }
+
+  const parsed = await parseJsonBody(request, getPermissionIdsSchema)
+  if (!parsed.success) {
+    return parsed.response
+  }
+
+  const { roleId } = parsed.data
 
   const rows = db
     .select({ permissionId: sysRolePermission.permissionId })

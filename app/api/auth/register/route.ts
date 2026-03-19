@@ -1,44 +1,23 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
-import { ok, fail } from '@/lib/result'
-import { sysUser, sysUserRole, sysConfig } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
+import { registerSchema } from '@/lib/api/schemas'
+import { parseJsonBody } from '@/lib/api/validation'
 import { hashPassword, signActivationToken } from '@/lib/auth'
+import { getSiteDomain } from '@/lib/config'
+import { db } from '@/lib/db'
+import { sysUser, sysUserRole } from '@/lib/db/schema'
 import { sendMail, buildActivationMailHtml } from '@/lib/mail'
+import { ok, fail } from '@/lib/result'
 
-const USERNAME_REGEX = /^[a-zA-Z][a-zA-Z0-9]*$/
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const USER_ROLE_ID = 3
 
-function getSiteDomain(): string {
-  const row = db.select().from(sysConfig).where(eq(sysConfig.configKey, 'site')).get()
-  if (!row || !row.configValue) return ''
-  try {
-    return JSON.parse(row.configValue).domain || ''
-  } catch {
-    return ''
-  }
-}
-
 export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const { username, email, password } = body
-
-  if (!username || !email || !password) {
-    return fail('用户名、邮箱和密码不能为空')
+  const parsed = await parseJsonBody(request, registerSchema)
+  if (!parsed.success) {
+    return parsed.response
   }
 
-  if (!USERNAME_REGEX.test(username)) {
-    return fail('用户名只能包含英文和数字，且必须英文开头')
-  }
-
-  if (!EMAIL_REGEX.test(email)) {
-    return fail('邮箱格式不正确')
-  }
-
-  if (password.length < 6) {
-    return fail('密码至少6个字符')
-  }
+  const { username, email, password } = parsed.data
 
   const existingUsername = db.select({ id: sysUser.id }).from(sysUser).where(eq(sysUser.username, username)).get()
   if (existingUsername) {
@@ -72,10 +51,21 @@ export async function POST(request: NextRequest) {
     const activationUrl = `${domain}/activate?token=${token}`
     const html = buildActivationMailHtml(activationUrl)
     await sendMail(email, 'SubGate 账号激活', html)
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : '邮件发送失败'
-    return fail(`注册成功但激活邮件发送失败：${msg}。请稍后在登录页重新发送激活邮件。`)
+  } catch {
+    return ok(
+      {
+        activationMailSent: false,
+        message: '注册成功，但激活邮件发送失败，请稍后在登录页重新发送激活邮件。',
+      },
+      '注册成功'
+    )
   }
 
-  return ok()
+  return ok(
+    {
+      activationMailSent: true,
+      message: '激活邮件已发送到您的邮箱，请查收并点击激活链接完成注册。',
+    },
+    '注册成功'
+  )
 }

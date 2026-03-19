@@ -1,53 +1,66 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
-import { ok, fail } from '@/lib/result'
-import { sysUser, sysUserRole } from '@/lib/db/schema'
 import { eq, and, ne } from 'drizzle-orm'
-import { hashPassword, getAuthFromCookie } from '@/lib/auth'
+import { z } from 'zod'
+import { hasPermissionCode, requireRequestAuth } from '@/lib/api/auth'
+import { createIdArraySchema } from '@/lib/api/schemas'
+import {
+  createIdSchema,
+  emailSchema,
+  normalizeOptionalText,
+  parseJsonBody,
+  statusSchema,
+  usernameSchema,
+} from '@/lib/api/validation'
+import { hashPassword } from '@/lib/auth'
+import { db } from '@/lib/db'
+import { sysUser, sysUserRole } from '@/lib/db/schema'
+import { ok, fail, forbidden as forbiddenResult } from '@/lib/result'
 
-const USERNAME_REGEX = /^[a-zA-Z][a-zA-Z0-9]*$/
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const updateUserSchema = z.object({
+  id: createIdSchema('用户ID'),
+  username: usernameSchema.optional(),
+  email: emailSchema.optional(),
+  password: z.string().optional().nullable()
+    .refine(value => value === undefined || value === null || value === '' || value.length >= 6, '密码至少6个字符'),
+  nickname: z.string().trim().max(255, '昵称长度不能超过255').optional().nullable(),
+  status: statusSchema.optional(),
+  roleIds: createIdArraySchema('角色ID').optional(),
+})
 
 export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const { id, username, email, password, nickname, status, roleIds } = body
-
-  if (!id) {
-    return fail('缺少用户ID')
+  const guard = await requireRequestAuth()
+  if (guard.response) {
+    return guard.response
   }
 
-  const auth = await getAuthFromCookie()
-  if (!auth) {
-    return fail('未登录')
+  const parsed = await parseJsonBody(request, updateUserSchema)
+  if (!parsed.success) {
+    return parsed.response
   }
+
+  const auth = guard.auth
+  const { id, username, email, password, nickname, status, roleIds } = parsed.data
 
   const existing = db.select().from(sysUser).where(eq(sysUser.id, id)).get()
   if (!existing) {
     return fail('用户不存在')
   }
 
-  // 判断权限
   const isSelf = auth.userId === id
-  const hasUpdatePerm = auth.role === 'admin' // 简化判断，后续可改为检查 user:update 权限
+  const canManageUsers = hasPermissionCode(auth, 'user:update')
 
-  // 非本人且无权限 → 拒绝
-  if (!isSelf && !hasUpdatePerm) {
-    return fail('无权限修改该用户')
+  if (!isSelf && !canManageUsers) {
+    return forbiddenResult('无权限修改该用户')
   }
 
   const updates: Record<string, unknown> = {}
 
-  if (isSelf && !hasUpdatePerm) {
-    // 普通用户编辑自己：只能改 nickname
+  if (isSelf && !canManageUsers) {
     if (nickname !== undefined && nickname !== null) {
-      updates.nickname = nickname
+      updates.nickname = normalizeOptionalText(nickname) ?? null
     }
   } else {
-    // 管理员编辑（自己或别人）
     if (username !== undefined && username !== null && username !== existing.username) {
-      if (!USERNAME_REGEX.test(username)) {
-        return fail('用户名只能包含英文和数字，且必须英文开头')
-      }
       const dup = db.select({ id: sysUser.id }).from(sysUser)
         .where(and(eq(sysUser.username, username), ne(sysUser.id, id))).get()
       if (dup) {
@@ -57,9 +70,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (email !== undefined && email !== null && email !== existing.email) {
-      if (!EMAIL_REGEX.test(email)) {
-        return fail('邮箱格式不正确')
-      }
       const dup = db.select({ id: sysUser.id }).from(sysUser)
         .where(and(eq(sysUser.email, email), ne(sysUser.id, id))).get()
       if (dup) {
@@ -68,14 +78,13 @@ export async function POST(request: NextRequest) {
       updates.email = email
     }
 
-    if (nickname !== undefined && nickname !== null) updates.nickname = nickname
+    if (nickname !== undefined) updates.nickname = normalizeOptionalText(nickname) ?? null
     if (status !== undefined && status !== null) updates.status = status
     if (password !== undefined && password !== null && password !== '') {
       updates.password = hashPassword(password)
     }
 
-    // roleIds 只有编辑别人时才允许修改
-    if (!isSelf && roleIds !== undefined && roleIds !== null) {
+    if (!isSelf && roleIds !== undefined) {
       db.delete(sysUserRole).where(eq(sysUserRole.userId, id)).run()
       for (const roleId of roleIds) {
         db.insert(sysUserRole).values({ userId: id, roleId }).run()

@@ -1,16 +1,24 @@
 import { NextRequest } from 'next/server'
+import { createEntityIdSchema } from '@/lib/api/schemas'
+import { requireRequestAuth } from '@/lib/api/auth'
+import { parseJsonBody } from '@/lib/api/validation'
 import { db } from '@/lib/db'
 import { ok, fail } from '@/lib/result'
 import { sysUser, sysUserRole, sysRole } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
 export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const { id } = body
-
-  if (!id) {
-    return fail('缺少用户ID')
+  const guard = await requireRequestAuth('user:list')
+  if (guard.response) {
+    return guard.response
   }
+
+  const parsed = await parseJsonBody(request, createEntityIdSchema('用户ID'))
+  if (!parsed.success) {
+    return parsed.response
+  }
+
+  const { id } = parsed.data
 
   const user = db.select({
     id: sysUser.id,

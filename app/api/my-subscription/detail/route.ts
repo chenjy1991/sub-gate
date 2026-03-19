@@ -1,23 +1,25 @@
 import { NextRequest } from 'next/server'
+import { requireRequestAuth } from '@/lib/api/auth'
+import { createEntityIdSchema } from '@/lib/api/schemas'
+import { parseJsonBody } from '@/lib/api/validation'
 import { db } from '@/lib/db'
 import { sysSubscription, sysSubscriptionNode, sysSubscriptionRole, sysSubscriptionUser, sysUserRole, sysNode } from '@/lib/db/schema'
 import { ok, fail } from '@/lib/result'
-import { getAuthFromCookie } from '@/lib/auth'
 import { eq, inArray, and } from 'drizzle-orm'
 
 export async function POST(request: NextRequest) {
-  const auth = await getAuthFromCookie()
-  if (!auth) {
-    return fail('未登录或登录已过期')
+  const guard = await requireRequestAuth()
+  if (guard.response) {
+    return guard.response
   }
 
-  const body = await request.json()
-  const { id } = body
-
-  if (!id) {
-    return fail('缺少订阅ID')
+  const parsed = await parseJsonBody(request, createEntityIdSchema('订阅ID'))
+  if (!parsed.success) {
+    return parsed.response
   }
 
+  const auth = guard.auth
+  const { id } = parsed.data
   const userId = auth.userId
 
   // Check direct user assignment

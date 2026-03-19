@@ -1,13 +1,26 @@
 import { NextRequest } from 'next/server'
-import { ok, fail } from '@/lib/result'
+import { z } from 'zod'
+import { requireRequestAuth } from '@/lib/api/auth'
+import { parseJsonBody } from '@/lib/api/validation'
+import { ok } from '@/lib/result'
 import { parseLinks } from '@/lib/node/parser'
 
+const parseLinksSchema = z.object({
+  links: z.string().trim().min(1, '链接不能为空'),
+})
+
 export async function POST(req: NextRequest) {
-  const { links } = await req.json()
+  const guard = await requireRequestAuth('node:import')
+  if (guard.response) {
+    return guard.response
+  }
 
-  if (!links) return fail('链接不能为空')
+  const parsed = await parseJsonBody(req, parseLinksSchema)
+  if (!parsed.success) {
+    return parsed.response
+  }
 
-  const result = parseLinks(links)
+  const result = parseLinks(parsed.data.links)
 
   return ok(result)
 }

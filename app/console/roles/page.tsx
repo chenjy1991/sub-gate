@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { getRoles, createRole, updateRole, deleteRole, getPermissionIds, assignPermissions } from '@/services/roles'
 import { getPermissionTree } from '@/services/permissions'
-import type { Role, PermissionTreeNode } from '@/types'
+import type { EntityId, PermissionTreeNode, Role } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -40,12 +40,12 @@ export default function RoleListPage() {
   const [loading, setLoading] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingRole, setEditingRole] = useState<Role | null>(null)
-  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [deleteId, setDeleteId] = useState<EntityId | null>(null)
 
   const [permDialogOpen, setPermDialogOpen] = useState(false)
-  const [permRoleId, setPermRoleId] = useState<string | null>(null)
+  const [permRoleId, setPermRoleId] = useState<EntityId | null>(null)
   const [allPermissions, setAllPermissions] = useState<PermissionTreeNode[]>([])
-  const [selectedPermIds, setSelectedPermIds] = useState<string[]>([])
+  const [selectedPermIds, setSelectedPermIds] = useState<EntityId[]>([])
 
   const pageSize = 10
 
@@ -53,7 +53,7 @@ export default function RoleListPage() {
     resolver: zodResolver(schema),
   })
 
-  const fetchRoles = async () => {
+  const fetchRoles = useCallback(async () => {
     setLoading(true)
     try {
       const res = await getRoles({ page, size: pageSize })
@@ -62,9 +62,9 @@ export default function RoleListPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [page])
 
-  useEffect(() => { fetchRoles() }, [page])
+  useEffect(() => { void fetchRoles() }, [fetchRoles])
 
   const openCreate = () => {
     setEditingRole(null)
@@ -95,7 +95,7 @@ export default function RoleListPage() {
     fetchRoles()
   }
 
-  const openPermDialog = async (roleId: string) => {
+  const openPermDialog = async (roleId: EntityId) => {
     setPermRoleId(roleId)
     const [perms, ids] = await Promise.all([
       getPermissionTree(),
@@ -112,8 +112,8 @@ export default function RoleListPage() {
     setPermDialogOpen(false)
   }
 
-  const getAllDescendantIds = (node: PermissionTreeNode): string[] => {
-    const ids: string[] = []
+  const getAllDescendantIds = (node: PermissionTreeNode): EntityId[] => {
+    const ids: EntityId[] = []
     for (const child of node.children) {
       ids.push(child.id)
       ids.push(...getAllDescendantIds(child))
@@ -121,7 +121,7 @@ export default function RoleListPage() {
     return ids
   }
 
-  const getCheckState = (node: PermissionTreeNode, selectedIds: string[]): 'checked' | 'indeterminate' | 'unchecked' => {
+  const getCheckState = (node: PermissionTreeNode, selectedIds: EntityId[]): 'checked' | 'indeterminate' | 'unchecked' => {
     if (node.children.length === 0) {
       return selectedIds.includes(node.id) ? 'checked' : 'unchecked'
     }

@@ -1,25 +1,24 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
-import { sysConfig } from '@/lib/db/schema'
-import { ok, fail } from '@/lib/result'
-import { eq } from 'drizzle-orm'
+import { z } from 'zod'
+import { requireRequestAuth } from '@/lib/api/auth'
+import { getJsonConfig } from '@/lib/config'
+import { parseJsonBody } from '@/lib/api/validation'
+import { ok } from '@/lib/result'
+
+const getConfigSchema = z.object({
+  key: z.enum(['mail', 'site']),
+})
 
 export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const { key } = body
-
-  if (!key) {
-    return fail('缺少配置键')
+  const guard = await requireRequestAuth('mail:list')
+  if (guard.response) {
+    return guard.response
   }
 
-  const row = db.select().from(sysConfig).where(eq(sysConfig.configKey, key)).get()
-  if (!row) {
-    return ok(null)
+  const parsed = await parseJsonBody(request, getConfigSchema)
+  if (!parsed.success) {
+    return parsed.response
   }
 
-  try {
-    return ok(JSON.parse(row.configValue))
-  } catch {
-    return ok(row.configValue)
-  }
+  return ok(getJsonConfig(parsed.data.key))
 }

@@ -1,10 +1,8 @@
 import { SignJWT, jwtVerify } from 'jose'
 import { hashSync, compareSync } from 'bcryptjs'
 import { cookies } from 'next/headers'
+import { getJwtSecret } from '@/lib/jwt'
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'sub-admin-jwt-secret-key-2024'
-)
 const COOKIE_NAME = 'token'
 const JWT_EXPIRES_IN = '7d'
 
@@ -18,12 +16,14 @@ export async function signToken(payload: JwtPayload): Promise<string> {
   return new SignJWT(payload as unknown as Record<string, unknown>)
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime(JWT_EXPIRES_IN)
-    .sign(JWT_SECRET)
+    .sign(getJwtSecret())
 }
 
 export async function verifyToken(token: string): Promise<JwtPayload | null> {
+  const jwtSecret = getJwtSecret()
+
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET)
+    const { payload } = await jwtVerify(token, jwtSecret)
     return payload as unknown as JwtPayload
   } catch {
     return null
@@ -80,12 +80,14 @@ export async function signActivationToken(userId: number): Promise<string> {
   return new SignJWT({ userId, type: 'activation' })
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime('24h')
-    .sign(JWT_SECRET)
+    .sign(getJwtSecret())
 }
 
 export async function verifyActivationToken(token: string): Promise<ActivationPayload | null> {
+  const jwtSecret = getJwtSecret()
+
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET)
+    const { payload } = await jwtVerify(token, jwtSecret)
     if (payload.type !== 'activation') return null
     return payload as unknown as ActivationPayload
   } catch {

@@ -1,16 +1,24 @@
 import { NextRequest } from 'next/server'
+import { requireRequestAuth } from '@/lib/api/auth'
+import { permissionPayloadSchema } from '@/lib/api/schemas'
+import { parseJsonBody } from '@/lib/api/validation'
 import { db } from '@/lib/db'
 import { sysPermission } from '@/lib/db/schema'
-import { ok, fail } from '@/lib/result'
+import { ok } from '@/lib/result'
 import { eq } from 'drizzle-orm'
 
 export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const { parentId = 0, name, code, type = 'menu', sort = 0, remark } = body
-
-  if (!name || !code) {
-    return fail('权限名称和编码不能为空')
+  const guard = await requireRequestAuth('permission:create')
+  if (guard.response) {
+    return guard.response
   }
+
+  const parsed = await parseJsonBody(request, permissionPayloadSchema)
+  if (!parsed.success) {
+    return parsed.response
+  }
+
+  const { parentId, name, code, type, sort, remark } = parsed.data
 
   const result = db.insert(sysPermission).values({
     parentId,

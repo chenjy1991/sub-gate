@@ -43,7 +43,7 @@ export default function CreateUserPage() {
   }, [])
 
   const onSubmit = async (data: FormData) => {
-    const roleIds = data.roleId ? [data.roleId] : []
+    const roleIds = data.roleId ? [Number(data.roleId)] : []
     await createUser({
       username: data.username,
       email: data.email,

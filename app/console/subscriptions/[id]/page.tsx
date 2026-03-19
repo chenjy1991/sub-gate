@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { getSubscriptionDetail, assignSubscriptionRoles, assignSubscriptionUsers } from '@/services/subscriptions'
 import { getRoles } from '@/services/roles'
 import { getUsers } from '@/services/users'
 import { useAuthStore } from '@/store/authStore'
-import type { SubscriptionDetail, Role, User } from '@/types'
+import type { EntityId, Role, SubscriptionDetail, User } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -29,12 +29,12 @@ const CLIENT_TYPES = [
   { key: 'quantumultx', label: 'QuantumultX' },
 ] as const
 
-function generateToken(userId: string, subscriptionId: string): string {
+function generateToken(userId: EntityId, subscriptionId: EntityId): string {
   const payload = `${userId}:${subscriptionId}`
   return btoa(payload).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-function getSubscribeUrl(userId: string, subscriptionId: string, type: string): string {
+function getSubscribeUrl(userId: EntityId, subscriptionId: EntityId, type: string): string {
   const token = generateToken(userId, subscriptionId)
   return `${window.location.origin}/api/subscribe/${token}?type=${type}`
 }
@@ -49,7 +49,7 @@ export default function SubscriptionDetailPage() {
   // 分配角色弹窗
   const [roleDialogOpen, setRoleDialogOpen] = useState(false)
   const [allRoles, setAllRoles] = useState<Role[]>([])
-  const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([])
+  const [selectedRoleIds, setSelectedRoleIds] = useState<EntityId[]>([])
 
   // 分配用户弹窗
   const [userDialogOpen, setUserDialogOpen] = useState(false)
@@ -59,26 +59,26 @@ export default function SubscriptionDetailPage() {
   const [dialogUserSearch, setDialogUserSearch] = useState('')
   const [dialogUserKeyword, setDialogUserKeyword] = useState('')
   const [dialogUserLoading, setDialogUserLoading] = useState(false)
-  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
+  const [selectedUserIds, setSelectedUserIds] = useState<EntityId[]>([])
 
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
   const dialogUserPageSize = 10
 
-  const fetchDetail = async () => {
+  const fetchDetail = useCallback(async () => {
     if (!id) return
     setLoading(true)
     try {
-      const data = await getSubscriptionDetail(id)
+      const data = await getSubscriptionDetail(Number(id))
       setDetail(data)
       setSelectedRoleIds(data.roleIds ?? [])
       setSelectedUserIds(data.userIds ?? [])
     } finally {
       setLoading(false)
     }
-  }
+  }, [id])
 
-  useEffect(() => { fetchDetail() }, [id])
+  useEffect(() => { void fetchDetail() }, [fetchDetail])
 
   const openRoleDialog = async () => {
     const res = await getRoles({ page: 1, size: 100 })
@@ -116,27 +116,27 @@ export default function SubscriptionDetailPage() {
     fetchDialogUsers(newPage, dialogUserKeyword)
   }
 
-  const toggleUserId = (uid: string) => {
+  const toggleUserId = (uid: EntityId) => {
     setSelectedUserIds(prev => prev.includes(uid) ? prev.filter(x => x !== uid) : [...prev, uid])
   }
 
   const saveRoles = async () => {
     if (!id) return
-    await assignSubscriptionRoles(id, selectedRoleIds)
+    await assignSubscriptionRoles(Number(id), selectedRoleIds)
     setRoleDialogOpen(false)
     fetchDetail()
   }
 
   const saveUsers = async () => {
     if (!id) return
-    await assignSubscriptionUsers(id, selectedUserIds)
+    await assignSubscriptionUsers(Number(id), selectedUserIds)
     setUserDialogOpen(false)
     fetchDetail()
   }
 
   const handleCopy = async (type: string) => {
     if (!user || !id) return
-    const url = getSubscribeUrl(user.id, id, type)
+    const url = getSubscribeUrl(user.id, Number(id), type)
     await navigator.clipboard.writeText(url)
     setCopiedKey(type)
     setTimeout(() => setCopiedKey(null), 2000)

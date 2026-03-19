@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'sub-admin-jwt-secret-key-2024'
-)
+import { getJwtSecret } from '@/lib/jwt'
 
 const PUBLIC_PATHS = [
   '/api/auth/login',
@@ -44,8 +41,11 @@ export async function middleware(request: NextRequest) {
         { status: 401 }
       )
     }
+
+    const jwtSecret = getJwtSecret()
+
     try {
-      await jwtVerify(token, JWT_SECRET)
+      await jwtVerify(token, jwtSecret)
       return NextResponse.next()
     } catch {
       return NextResponse.json(
@@ -61,8 +61,11 @@ export async function middleware(request: NextRequest) {
     if (!token) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
+
+    const jwtSecret = getJwtSecret()
+
     try {
-      await jwtVerify(token, JWT_SECRET)
+      await jwtVerify(token, jwtSecret)
       return NextResponse.next()
     } catch {
       return NextResponse.redirect(new URL('/login', request.url))

@@ -1,5 +1,7 @@
+export type EntityId = number
+
 export interface AuthUser {
-  id: string
+  id: EntityId
   username: string
   email: string
   name: string
@@ -10,7 +12,7 @@ export interface AuthUser {
 }
 
 export interface User {
-  id: string
+  id: EntityId
   username: string
   email: string
   nickname: string
@@ -20,7 +22,7 @@ export interface User {
 }
 
 export interface Role {
-  id: string
+  id: EntityId
   name: string
   code: string
   remark: string
@@ -33,7 +35,6 @@ export interface LoginForm {
 }
 
 export interface AuthState {
-  token: string | null
   user: AuthUser | null
 }
 
@@ -56,7 +57,7 @@ export interface PageResult<T> {
 }
 
 export interface ProxyNode {
-  id: string
+  id: EntityId
   name: string
   address: string
   port: number
@@ -81,7 +82,7 @@ export interface ParseResult {
 }
 
 export interface Subscription {
-  id: string
+  id: EntityId
   name: string
   remark: string
   status: number
@@ -89,16 +90,16 @@ export interface Subscription {
 
 export interface SubscriptionDetail extends Subscription {
   nodes: ProxyNode[]
-  nodeIds: string[]
-  roleIds: string[]
-  userIds: string[]
+  nodeIds: EntityId[]
+  roleIds: EntityId[]
+  userIds: EntityId[]
   roles: Role[]
   users: User[]
 }
 
 export interface Permission {
-  id: string
-  parentId: string
+  id: EntityId
+  parentId: EntityId
   name: string
   code: string
   type: 'menu' | 'button'
@@ -111,7 +112,7 @@ export interface PermissionTreeNode extends Permission {
 }
 
 export interface MySubscription {
-  id: string
+  id: EntityId
   name: string
   remark: string
   status: number
@@ -119,7 +120,7 @@ export interface MySubscription {
 }
 
 export interface MySubscriptionDetail {
-  id: string
+  id: EntityId
   name: string
   remark: string
   nodes: ProxyNode[]

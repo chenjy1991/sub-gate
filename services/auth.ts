@@ -1,5 +1,10 @@
 import type { LoginForm, AuthUser } from '@/types'
 
+export interface RegisterResult {
+  activationMailSent: boolean
+  message: string
+}
+
 export async function login(form: LoginForm): Promise<{ token: string; user: AuthUser }> {
   const res = await fetch('/api/auth/login', {
     method: 'POST',
@@ -21,7 +26,7 @@ export async function logout(): Promise<void> {
   }
 }
 
-export async function register(data: { username: string; email: string; password: string }): Promise<void> {
+export async function register(data: { username: string; email: string; password: string }): Promise<RegisterResult> {
   const res = await fetch('/api/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -31,6 +36,8 @@ export async function register(data: { username: string; email: string; password
   if (json.code !== 0) {
     throw new Error(json.msg || '注册失败')
   }
+
+  return json.data
 }
 
 export async function activate(token: string): Promise<void> {

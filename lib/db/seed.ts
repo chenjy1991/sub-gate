@@ -1,92 +1,7 @@
-import { db, sqlite } from './index'
+import { db } from './index'
 import { sysUser, sysRole, sysPermission, sysUserRole, sysRolePermission } from './schema'
 import { hashPassword } from '../auth'
-
-function ensureTables() {
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS sys_user (
-      id INTEGER PRIMARY KEY,
-      username TEXT NOT NULL UNIQUE,
-      email TEXT NOT NULL UNIQUE,
-      password TEXT NOT NULL,
-      nickname TEXT,
-      status INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS sys_role (
-      id INTEGER PRIMARY KEY,
-      name TEXT NOT NULL,
-      code TEXT NOT NULL UNIQUE,
-      remark TEXT,
-      status INTEGER NOT NULL DEFAULT 1
-    );
-    CREATE TABLE IF NOT EXISTS sys_permission (
-      id INTEGER PRIMARY KEY,
-      parent_id INTEGER NOT NULL DEFAULT 0,
-      name TEXT NOT NULL,
-      code TEXT NOT NULL UNIQUE,
-      type TEXT NOT NULL DEFAULT 'menu',
-      sort INTEGER NOT NULL DEFAULT 0,
-      remark TEXT
-    );
-    CREATE TABLE IF NOT EXISTS sys_node (
-      id INTEGER PRIMARY KEY,
-      name TEXT NOT NULL,
-      address TEXT NOT NULL,
-      port INTEGER NOT NULL,
-      protocol TEXT NOT NULL,
-      uuid TEXT,
-      alter_id INTEGER DEFAULT 0,
-      security TEXT,
-      network TEXT,
-      tls INTEGER DEFAULT 0,
-      sni TEXT,
-      path TEXT,
-      host TEXT,
-      raw_link TEXT,
-      remark TEXT,
-      status INTEGER DEFAULT 1,
-      sort INTEGER DEFAULT 0
-    );
-    CREATE TABLE IF NOT EXISTS sys_subscription (
-      id INTEGER PRIMARY KEY,
-      name TEXT NOT NULL,
-      remark TEXT,
-      status INTEGER NOT NULL DEFAULT 1
-    );
-    CREATE TABLE IF NOT EXISTS sys_user_role (
-      user_id INTEGER NOT NULL,
-      role_id INTEGER NOT NULL,
-      PRIMARY KEY (user_id, role_id)
-    );
-    CREATE TABLE IF NOT EXISTS sys_role_permission (
-      role_id INTEGER NOT NULL,
-      permission_id INTEGER NOT NULL,
-      PRIMARY KEY (role_id, permission_id)
-    );
-    CREATE TABLE IF NOT EXISTS sys_subscription_node (
-      subscription_id INTEGER NOT NULL,
-      node_id INTEGER NOT NULL,
-      PRIMARY KEY (subscription_id, node_id)
-    );
-    CREATE TABLE IF NOT EXISTS sys_subscription_role (
-      subscription_id INTEGER NOT NULL,
-      role_id INTEGER NOT NULL,
-      PRIMARY KEY (subscription_id, role_id)
-    );
-    CREATE TABLE IF NOT EXISTS sys_subscription_user (
-      subscription_id INTEGER NOT NULL,
-      user_id INTEGER NOT NULL,
-      PRIMARY KEY (subscription_id, user_id)
-    );
-    CREATE TABLE IF NOT EXISTS sys_config (
-      id INTEGER PRIMARY KEY,
-      config_key TEXT NOT NULL UNIQUE,
-      config_value TEXT NOT NULL DEFAULT '',
-      remark TEXT
-    );
-  `)
-}
+import { runMigrations } from './migrate'
 
 function seedRoles() {
   const existing = db.select().from(sysRole).all()
@@ -165,7 +80,7 @@ function seedPermissions() {
 }
 
 export function seed() {
-  ensureTables()
+  runMigrations()
   seedRoles()
   seedAdmin()
   seedPermissions()

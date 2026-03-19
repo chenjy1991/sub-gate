@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { getMySubscriptions, getMySubscriptionDetail } from '@/services/mySubscriptions'
 import { checkNode } from '@/services/nodes'
 import { useAuthStore } from '@/store/authStore'
-import type { MySubscription, MySubscriptionDetail, ProxyNode } from '@/types'
+import type { EntityId, MySubscription, MySubscriptionDetail, ProxyNode } from '@/types'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -23,12 +23,12 @@ const CLIENT_TYPES = [
   { key: 'quantumultx', label: 'QuantumultX' },
 ] as const
 
-function generateToken(userId: string, subscriptionId: string): string {
+function generateToken(userId: EntityId, subscriptionId: EntityId): string {
   const payload = `${userId}:${subscriptionId}`
   return btoa(payload).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-function getSubscribeUrl(userId: string, subscriptionId: string, type: string): string {
+function getSubscribeUrl(userId: EntityId, subscriptionId: EntityId, type: string): string {
   const token = generateToken(userId, subscriptionId)
   return `${window.location.origin}/api/subscribe/${token}?type=${type}`
 }
@@ -36,12 +36,12 @@ function getSubscribeUrl(userId: string, subscriptionId: string, type: string): 
 export default function MySubscriptionPage() {
   const user = useAuthStore(s => s.user)
   const [subscriptions, setSubscriptions] = useState<MySubscription[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<EntityId | null>(null)
   const [detail, setDetail] = useState<MySubscriptionDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
-  const [nodeStatus, setNodeStatus] = useState<Record<string, { checking: boolean; reachable?: boolean; latency?: number }>>({})
+  const [nodeStatus, setNodeStatus] = useState<Record<number, { checking: boolean; reachable?: boolean; latency?: number }>>({})
 
   useEffect(() => {
     getMySubscriptions().then(data => {
@@ -53,7 +53,7 @@ export default function MySubscriptionPage() {
   }, [])
 
   const checkAllNodes = useCallback((nodes: ProxyNode[]) => {
-    const initial: Record<string, { checking: boolean }> = {}
+    const initial: Record<number, { checking: boolean }> = {}
     nodes.forEach(n => { initial[n.id] = { checking: true } })
     setNodeStatus(initial)
 
@@ -81,7 +81,7 @@ export default function MySubscriptionPage() {
     }).finally(() => setDetailLoading(false))
   }, [selectedId, checkAllNodes])
 
-  const handleCopy = async (subId: string, type: string) => {
+  const handleCopy = async (subId: EntityId, type: string) => {
     if (!user) return
     const url = getSubscribeUrl(user.id, subId, type)
     await navigator.clipboard.writeText(url)

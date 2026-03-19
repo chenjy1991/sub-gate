@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { getPermissionTree, createPermission, updatePermission, deletePermission } from '@/services/permissions'
-import type { PermissionTreeNode } from '@/types'
+import type { EntityId, PermissionTreeNode } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -40,14 +40,14 @@ type MenuFormData = z.infer<typeof menuSchema>
 type ButtonFormData = z.infer<typeof buttonSchema>
 
 type DialogMode =
-  | { type: 'create-menu'; parentId: string }
-  | { type: 'create-button'; parentId: string }
+  | { type: 'create-menu'; parentId: EntityId }
+  | { type: 'create-button'; parentId: EntityId }
   | { type: 'edit'; node: PermissionTreeNode }
 
 export default function PermissionListPage() {
   const [tree, setTree] = useState<PermissionTreeNode[]>([])
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState<Set<EntityId>>(new Set())
+  const [selectedId, setSelectedId] = useState<EntityId | null>(null)
   const [dialogMode, setDialogMode] = useState<DialogMode | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<PermissionTreeNode | null>(null)
 
@@ -65,26 +65,17 @@ export default function PermissionListPage() {
 
   const fetchTree = async () => {
     const data = await getPermissionTree()
-    // API 返回的 id/parentId 是 number，统一转为 string
-    const normalize = (nodes: PermissionTreeNode[]): PermissionTreeNode[] =>
-      nodes.map(n => ({
-        ...n,
-        id: String(n.id),
-        parentId: String(n.parentId),
-        children: normalize(n.children),
-      }))
-    const normalized = normalize(data)
-    setTree(normalized)
+    setTree(data)
     setExpanded(prev => {
       const next = new Set(prev)
-      normalized.forEach(n => next.add(n.id))
+      data.forEach(n => next.add(n.id))
       return next
     })
   }
 
   useEffect(() => { fetchTree() }, [])
 
-  const findNode = (id: string): { node: PermissionTreeNode; level: 1 | 2 } | null => {
+  const findNode = (id: EntityId): { node: PermissionTreeNode; level: 1 | 2 } | null => {
     for (const l1 of tree) {
       if (l1.id === id) return { node: l1, level: 1 }
       for (const l2 of l1.children) {
@@ -96,7 +87,7 @@ export default function PermissionListPage() {
 
   const selected = selectedId ? findNode(selectedId) : null
 
-  const toggleExpand = (id: string) => {
+  const toggleExpand = (id: EntityId) => {
     setExpanded(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
@@ -105,12 +96,12 @@ export default function PermissionListPage() {
     })
   }
 
-  const openCreateMenu = (parentId: string) => {
+  const openCreateMenu = (parentId: EntityId) => {
     setDialogMode({ type: 'create-menu', parentId })
     menuForm.reset({ name: '', code: '', sort: 0, remark: '' })
   }
 
-  const openCreateButton = (parentId: string) => {
+  const openCreateButton = (parentId: EntityId) => {
     setDialogMode({ type: 'create-button', parentId })
     buttonForm.reset({ name: '', code: '', remark: '' })
   }
@@ -156,7 +147,7 @@ export default function PermissionListPage() {
       })
     } else {
       await createPermission({
-        parentId: (dialogMode as { type: 'create-button'; parentId: string }).parentId,
+        parentId: (dialogMode as { type: 'create-button'; parentId: EntityId }).parentId,
         name: data.name,
         code: data.code,
         type: 'button',
@@ -301,7 +292,7 @@ export default function PermissionListPage() {
       <div className="w-[280px] shrink-0 rounded-md border bg-white flex flex-col">
         <div className="flex items-center justify-between border-b px-4 py-3">
           <h2 className="text-base font-medium">权限菜单</h2>
-          <Button size="sm" variant="outline" onClick={() => openCreateMenu('0')}>
+          <Button size="sm" variant="outline" onClick={() => openCreateMenu(0)}>
             <Plus size={14} className="mr-1" /> 新增
           </Button>
         </div>

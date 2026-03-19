@@ -1,12 +1,29 @@
 import { NextRequest } from 'next/server'
+import { eq, inArray, like, or, sql } from 'drizzle-orm'
+import { z } from 'zod'
+import { requireRequestAuth } from '@/lib/api/auth'
+import { paginationSchema } from '@/lib/api/schemas'
+import { parseJsonBody } from '@/lib/api/validation'
 import { db } from '@/lib/db'
-import { ok } from '@/lib/result'
 import { sysUser, sysUserRole, sysRole } from '@/lib/db/schema'
-import { eq, like, or, sql } from 'drizzle-orm'
+import { ok } from '@/lib/result'
+
+const userListSchema = paginationSchema.extend({
+  username: z.string().trim().optional(),
+})
 
 export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const { page = 1, size = 10, username } = body
+  const guard = await requireRequestAuth('user:list')
+  if (guard.response) {
+    return guard.response
+  }
+
+  const parsed = await parseJsonBody(request, userListSchema)
+  if (!parsed.success) {
+    return parsed.response
+  }
+
+  const { page, size, username } = parsed.data
 
   let query = db.select({
     id: sysUser.id,
@@ -36,18 +53,27 @@ export async function POST(request: NextRequest) {
     .offset((page - 1) * size)
     .all()
 
-  const list = users.map(user => {
-    const roles = db
-      .select({ code: sysRole.code })
+  const userIds = users.map(user => user.id)
+  const roleRows = userIds.length > 0
+    ? db
+      .select({ userId: sysUserRole.userId, code: sysRole.code })
       .from(sysUserRole)
       .innerJoin(sysRole, eq(sysUserRole.roleId, sysRole.id))
-      .where(eq(sysUserRole.userId, user.id))
+      .where(inArray(sysUserRole.userId, userIds))
       .all()
-    return {
-      ...user,
-      roleCodes: roles.map(r => r.code),
-    }
-  })
+    : []
+
+  const roleCodesByUserId = new Map<number, string[]>()
+  for (const row of roleRows) {
+    const codes = roleCodesByUserId.get(row.userId) ?? []
+    codes.push(row.code)
+    roleCodesByUserId.set(row.userId, codes)
+  }
+
+  const list = users.map(user => ({
+    ...user,
+    roleCodes: roleCodesByUserId.get(user.id) ?? [],
+  }))
 
   return ok({ total, list })
 }

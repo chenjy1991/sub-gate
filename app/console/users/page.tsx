@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getUsers, deleteUser } from '@/services/users'
-import type { User } from '@/types'
+import type { EntityId, User } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -27,11 +27,11 @@ export default function UserListPage() {
   const [keyword, setKeyword] = useState('')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
-  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [deleteId, setDeleteId] = useState<EntityId | null>(null)
 
   const pageSize = 10
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoading(true)
     try {
       const res = await getUsers({ page, size: pageSize, username: search || undefined })
@@ -40,9 +40,9 @@ export default function UserListPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [page, search])
 
-  useEffect(() => { fetchUsers() }, [page, search])
+  useEffect(() => { void fetchUsers() }, [fetchUsers])
 
   const handleSearch = () => {
     setPage(1)

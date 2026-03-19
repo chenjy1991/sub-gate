@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { register as registerApi } from '@/services/auth'
+import { register as registerApi, type RegisterResult } from '@/services/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -28,6 +28,7 @@ export default function RegisterPage() {
   const router = useRouter()
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [registerResult, setRegisterResult] = useState<RegisterResult | null>(null)
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -36,11 +37,12 @@ export default function RegisterPage() {
   const onSubmit = async (data: FormData) => {
     setError('')
     try {
-      await registerApi({
+      const result = await registerApi({
         username: data.username,
         email: data.email,
         password: data.password,
       })
+      setRegisterResult(result)
       setSuccess(true)
     } catch (e) {
       setError(e instanceof Error ? e.message : '注册失败')
@@ -54,7 +56,7 @@ export default function RegisterPage() {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">注册成功</CardTitle>
             <CardDescription>
-              激活邮件已发送到您的邮箱，请查收并点击激活链接完成注册。
+              {registerResult?.message || '激活邮件已发送到您的邮箱，请查收并点击激活链接完成注册。'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -62,7 +64,9 @@ export default function RegisterPage() {
               前往登录
             </Button>
             <p className="text-center text-xs text-zinc-400">
-              没有收到邮件？请检查垃圾邮件文件夹
+              {registerResult?.activationMailSent
+                ? '没有收到邮件？请检查垃圾邮件文件夹'
+                : '邮件发送失败时，可稍后在登录页使用“重新发送激活邮件”。'}
             </p>
           </CardContent>
         </Card>

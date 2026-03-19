@@ -1,26 +1,9 @@
+import type { MailConfig } from '@/types'
 import nodemailer from 'nodemailer'
-import { db } from './db'
-import { sysConfig } from './db/schema'
-import { eq } from 'drizzle-orm'
-
-export interface MailConfig {
-  host: string
-  port: number
-  secure: boolean
-  user: string
-  pass: string
-  from: string
-}
+import { getMailConfigValue } from './config'
 
 export function getMailConfig(): MailConfig | null {
-  const row = db.select().from(sysConfig)
-    .where(eq(sysConfig.configKey, 'mail')).get()
-  if (!row || !row.configValue) return null
-  try {
-    return JSON.parse(row.configValue)
-  } catch {
-    return null
-  }
+  return getMailConfigValue()
 }
 
 export async function sendMail(to: string, subject: string, html: string) {

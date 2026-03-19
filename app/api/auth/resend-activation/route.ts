@@ -1,28 +1,26 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
-import { ok, fail } from '@/lib/result'
-import { sysUser, sysConfig } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
+import { z } from 'zod'
+import { emailSchema } from '@/lib/api/validation'
+import { parseJsonBody } from '@/lib/api/validation'
 import { signActivationToken } from '@/lib/auth'
+import { getSiteDomain } from '@/lib/config'
+import { db } from '@/lib/db'
+import { sysUser } from '@/lib/db/schema'
 import { sendMail, buildActivationMailHtml } from '@/lib/mail'
+import { ok, fail } from '@/lib/result'
 
-function getSiteDomain(): string {
-  const row = db.select().from(sysConfig).where(eq(sysConfig.configKey, 'site')).get()
-  if (!row || !row.configValue) return ''
-  try {
-    return JSON.parse(row.configValue).domain || ''
-  } catch {
-    return ''
-  }
-}
+const resendActivationSchema = z.object({
+  email: emailSchema,
+})
 
 export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const { email } = body
-
-  if (!email) {
-    return fail('请输入邮箱')
+  const parsed = await parseJsonBody(request, resendActivationSchema)
+  if (!parsed.success) {
+    return parsed.response
   }
+
+  const { email } = parsed.data
 
   const user = db.select().from(sysUser).where(eq(sysUser.email, email)).get()
   if (!user) {

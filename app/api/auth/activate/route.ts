@@ -1,17 +1,23 @@
 import { NextRequest } from 'next/server'
+import { z } from 'zod'
+import { parseJsonBody } from '@/lib/api/validation'
 import { db } from '@/lib/db'
 import { ok, fail } from '@/lib/result'
 import { sysUser } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { verifyActivationToken } from '@/lib/auth'
 
-export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const { token } = body
+const activateSchema = z.object({
+  token: z.string().trim().min(1, '缺少激活 token'),
+})
 
-  if (!token) {
-    return fail('缺少激活 token')
+export async function POST(request: NextRequest) {
+  const parsed = await parseJsonBody(request, activateSchema)
+  if (!parsed.success) {
+    return parsed.response
   }
+
+  const { token } = parsed.data
 
   const payload = await verifyActivationToken(token)
   if (!payload) {

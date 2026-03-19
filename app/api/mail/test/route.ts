@@ -1,14 +1,26 @@
 import { NextRequest } from 'next/server'
-import { ok, fail } from '@/lib/result'
+import { z } from 'zod'
+import { requireRequestAuth } from '@/lib/api/auth'
+import { emailSchema, parseJsonBody } from '@/lib/api/validation'
 import { getMailConfig, sendMail, buildTestMailHtml } from '@/lib/mail'
+import { ok, fail } from '@/lib/result'
+
+const mailTestSchema = z.object({
+  to: emailSchema,
+})
 
 export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const { to } = body
-
-  if (!to) {
-    return fail('请输入收件邮箱')
+  const guard = await requireRequestAuth('mail:test')
+  if (guard.response) {
+    return guard.response
   }
+
+  const parsed = await parseJsonBody(request, mailTestSchema)
+  if (!parsed.success) {
+    return parsed.response
+  }
+
+  const { to } = parsed.data
 
   const config = getMailConfig()
   if (!config) {

@@ -1,15 +1,23 @@
 import { NextRequest } from 'next/server'
+import { requireRequestAuth } from '@/lib/api/auth'
+import { nodePayloadSchema } from '@/lib/api/schemas'
+import { parseJsonBody } from '@/lib/api/validation'
 import { db } from '@/lib/db'
 import { sysNode } from '@/lib/db/schema'
-import { ok, fail } from '@/lib/result'
+import { ok } from '@/lib/result'
 
 export async function POST(req: NextRequest) {
-  const body = await req.json()
-  const { name, address, port } = body
+  const guard = await requireRequestAuth('node:create')
+  if (guard.response) {
+    return guard.response
+  }
 
-  if (!name || !address || !port) return fail('名称、地址、端口不能为空')
+  const parsed = await parseJsonBody(req, nodePayloadSchema)
+  if (!parsed.success) {
+    return parsed.response
+  }
 
-  await db.insert(sysNode).values(body)
+  db.insert(sysNode).values(parsed.data).run()
 
   return ok()
 }

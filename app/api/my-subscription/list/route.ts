@@ -1,15 +1,16 @@
+import { requireRequestAuth } from '@/lib/api/auth'
 import { db } from '@/lib/db'
 import { sysSubscription, sysSubscriptionNode, sysSubscriptionRole, sysSubscriptionUser, sysUserRole, sysNode } from '@/lib/db/schema'
-import { ok, fail } from '@/lib/result'
-import { getAuthFromCookie } from '@/lib/auth'
+import { ok } from '@/lib/result'
 import { eq, inArray, sql, and } from 'drizzle-orm'
 
 export async function POST() {
-  const auth = await getAuthFromCookie()
-  if (!auth) {
-    return fail('未登录或登录已过期')
+  const guard = await requireRequestAuth()
+  if (guard.response) {
+    return guard.response
   }
 
+  const auth = guard.auth
   const userId = auth.userId
 
   const userRoleIds = db
@@ -48,22 +49,32 @@ export async function POST() {
     .all()
     .filter(s => s.status === 1)
 
-  const list = subscriptions.map(sub => {
-    const [{ count }] = db
-      .select({ count: sql<number>`count(*)` })
+  const subscriptionIds = subscriptions.map(subscription => subscription.id)
+  const nodeCounts = subscriptionIds.length > 0
+    ? db
+      .select({
+        subscriptionId: sysSubscriptionNode.subscriptionId,
+        count: sql<number>`count(*)`,
+      })
       .from(sysSubscriptionNode)
       .innerJoin(sysNode, eq(sysSubscriptionNode.nodeId, sysNode.id))
-      .where(and(eq(sysSubscriptionNode.subscriptionId, sub.id), eq(sysNode.status, 1)))
+      .where(and(inArray(sysSubscriptionNode.subscriptionId, subscriptionIds), eq(sysNode.status, 1)))
+      .groupBy(sysSubscriptionNode.subscriptionId)
       .all()
+    : []
 
-    return {
-      id: sub.id,
-      name: sub.name,
-      remark: sub.remark,
-      status: sub.status,
-      nodeCount: count,
-    }
-  })
+  const nodeCountBySubscriptionId = new Map<number, number>()
+  for (const row of nodeCounts) {
+    nodeCountBySubscriptionId.set(row.subscriptionId, row.count)
+  }
+
+  const list = subscriptions.map(sub => ({
+    id: sub.id,
+    name: sub.name,
+    remark: sub.remark,
+    status: sub.status,
+    nodeCount: nodeCountBySubscriptionId.get(sub.id) ?? 0,
+  }))
 
   return ok(list)
 }

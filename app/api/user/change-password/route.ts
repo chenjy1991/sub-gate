@@ -2,24 +2,29 @@ import { db } from '@/lib/db'
 import { ok, fail } from '@/lib/result'
 import { sysUser } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
-import { getAuthFromCookie, verifyPassword, hashPassword } from '@/lib/auth'
+import { z } from 'zod'
+import { requireRequestAuth } from '@/lib/api/auth'
+import { parseJsonBody, passwordSchema } from '@/lib/api/validation'
+import { verifyPassword, hashPassword } from '@/lib/auth'
+
+const changePasswordSchema = z.object({
+  oldPassword: z.string().min(1, '请输入当前密码'),
+  newPassword: passwordSchema,
+})
 
 export async function POST(request: Request) {
-  const auth = await getAuthFromCookie()
-  if (!auth) {
-    return fail('未登录')
+  const guard = await requireRequestAuth()
+  if (guard.response) {
+    return guard.response
   }
 
-  const body = await request.json()
-  const { oldPassword, newPassword } = body
-
-  if (!oldPassword || !newPassword) {
-    return fail('请输入当前密码和新密码')
+  const parsed = await parseJsonBody(request, changePasswordSchema)
+  if (!parsed.success) {
+    return parsed.response
   }
 
-  if (newPassword.length < 6) {
-    return fail('新密码至少6个字符')
-  }
+  const auth = guard.auth
+  const { oldPassword, newPassword } = parsed.data
 
   const user = db.select().from(sysUser).where(eq(sysUser.id, auth.userId)).get()
   if (!user) {

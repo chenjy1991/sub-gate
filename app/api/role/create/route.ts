@@ -1,16 +1,24 @@
 import { NextRequest } from 'next/server'
+import { requireRequestAuth } from '@/lib/api/auth'
+import { rolePayloadSchema } from '@/lib/api/schemas'
+import { parseJsonBody } from '@/lib/api/validation'
 import { db } from '@/lib/db'
-import { ok, fail } from '@/lib/result'
+import { ok } from '@/lib/result'
 import { sysRole } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
 export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const { name, code, remark, status = 1 } = body
-
-  if (!name || !code) {
-    return fail('角色名称和编码不能为空')
+  const guard = await requireRequestAuth('role:create')
+  if (guard.response) {
+    return guard.response
   }
+
+  const parsed = await parseJsonBody(request, rolePayloadSchema)
+  if (!parsed.success) {
+    return parsed.response
+  }
+
+  const { name, code, remark, status } = parsed.data
 
   const result = db.insert(sysRole).values({
     name,

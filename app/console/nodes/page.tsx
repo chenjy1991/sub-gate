@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getNodes, deleteNode, parseLinks, importNodes, checkNode, generateLink, updateNode } from '@/services/nodes'
-import type { ProxyNode, ParseResult } from '@/types'
+import type { EntityId, ParseResult, ProxyNode } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -38,9 +38,9 @@ export default function NodeListPage() {
   const [keyword, setKeyword] = useState('')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
-  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [deleteId, setDeleteId] = useState<EntityId | null>(null)
 
-  const [checkStatus, setCheckStatus] = useState<Map<string, { reachable: boolean; latency: number } | 'checking'>>(new Map())
+  const [checkStatus, setCheckStatus] = useState<Map<EntityId, { reachable: boolean; latency: number } | 'checking'>>(new Map())
   const [checkingAll, setCheckingAll] = useState(false)
 
   const [importOpen, setImportOpen] = useState(false)
@@ -53,11 +53,11 @@ export default function NodeListPage() {
   const [linkText, setLinkText] = useState('')
   const [linkLoading, setLinkLoading] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [togglingId, setTogglingId] = useState<EntityId | null>(null)
 
   const pageSize = 10
 
-  const fetchNodes = async () => {
+  const fetchNodes = useCallback(async () => {
     setLoading(true)
     try {
       const res = await getNodes({ page, size: pageSize, keyword: search || undefined })
@@ -66,9 +66,9 @@ export default function NodeListPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [page, search])
 
-  useEffect(() => { fetchNodes() }, [page, search])
+  useEffect(() => { void fetchNodes() }, [fetchNodes])
 
   const handleSearch = () => {
     setPage(1)
@@ -82,7 +82,7 @@ export default function NodeListPage() {
     fetchNodes()
   }
 
-  const handleCheck = async (nodeId: string) => {
+  const handleCheck = async (nodeId: EntityId) => {
     setCheckStatus(prev => new Map(prev).set(nodeId, 'checking'))
     try {
       const result = await checkNode(nodeId)
@@ -145,7 +145,7 @@ export default function NodeListPage() {
     setParseResult(null)
   }
 
-  const handleGenerateLink = async (nodeId: string) => {
+  const handleGenerateLink = async (nodeId: EntityId) => {
     setLinkLoading(true)
     setLinkText('')
     setCopied(false)
@@ -160,7 +160,7 @@ export default function NodeListPage() {
     }
   }
 
-  const handleToggleStatus = async (id: string, currentStatus: number) => {
+  const handleToggleStatus = async (id: EntityId, currentStatus: number) => {
     setTogglingId(id)
     try {
       await updateNode({ id, status: currentStatus === 1 ? 0 : 1 })

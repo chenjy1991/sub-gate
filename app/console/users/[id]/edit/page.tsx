@@ -46,7 +46,7 @@ export default function EditUserPage() {
 
   useEffect(() => {
     if (!id || roles.length === 0) return
-    getUserById(id).then(user => {
+    getUserById(Number(id)).then(user => {
       setValue('username', user.username)
       setValue('email', user.email)
       setValue('nickname', user.nickname || '')
@@ -61,9 +61,9 @@ export default function EditUserPage() {
   }, [id, setValue, roles])
 
   const onSubmit = async (data: FormData) => {
-    const roleIds = data.roleId ? [data.roleId] : []
+    const roleIds = data.roleId ? [Number(data.roleId)] : []
     await updateUser({
-      id,
+      id: Number(id),
       username: data.username,
       email: data.email,
       password: data.password || undefined,

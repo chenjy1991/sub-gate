@@ -1,25 +1,33 @@
 import { NextRequest } from 'next/server'
+import { requireRequestAuth } from '@/lib/api/auth'
+import { subscriptionPayloadSchema } from '@/lib/api/schemas'
+import { parseJsonBody } from '@/lib/api/validation'
 import { db } from '@/lib/db'
 import { sysSubscription, sysSubscriptionNode } from '@/lib/db/schema'
-import { ok, fail } from '@/lib/result'
+import { ok } from '@/lib/result'
 
 export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const { name, remark, status, nodeIds } = body
-
-  if (!name || !name.trim()) {
-    return fail('订阅名称不能为空')
+  const guard = await requireRequestAuth('subscription:create')
+  if (guard.response) {
+    return guard.response
   }
 
+  const parsed = await parseJsonBody(request, subscriptionPayloadSchema)
+  if (!parsed.success) {
+    return parsed.response
+  }
+
+  const { name, remark, status, nodeIds } = parsed.data
+
   const result = db.insert(sysSubscription).values({
-    name: name.trim(),
+    name,
     remark: remark ?? null,
-    status: status ?? 1,
+    status,
   }).run()
 
   const subId = Number(result.lastInsertRowid)
 
-  if (nodeIds && Array.isArray(nodeIds) && nodeIds.length > 0) {
+  if (nodeIds.length > 0) {
     db.insert(sysSubscriptionNode)
       .values(nodeIds.map((nodeId: number) => ({ subscriptionId: subId, nodeId })))
       .run()

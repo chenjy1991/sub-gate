@@ -1,28 +1,42 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
-import { ok, fail } from '@/lib/result'
-import { sysUser, sysUserRole } from '@/lib/db/schema'
+import { z } from 'zod'
 import { eq } from 'drizzle-orm'
+import { requireRequestAuth } from '@/lib/api/auth'
+import { createIdArraySchema } from '@/lib/api/schemas'
+import {
+  emailSchema,
+  normalizeOptionalText,
+  parseJsonBody,
+  passwordSchema,
+  statusSchema,
+  usernameSchema,
+} from '@/lib/api/validation'
 import { hashPassword } from '@/lib/auth'
+import { db } from '@/lib/db'
+import { sysUser, sysUserRole } from '@/lib/db/schema'
+import { ok, fail } from '@/lib/result'
 
-const USERNAME_REGEX = /^[a-zA-Z][a-zA-Z0-9]*$/
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const createUserSchema = z.object({
+  username: usernameSchema,
+  email: emailSchema,
+  password: passwordSchema,
+  nickname: z.string().trim().max(255, '昵称长度不能超过255').optional().nullable(),
+  status: statusSchema.default(1),
+  roleIds: createIdArraySchema('角色ID').optional().default([]),
+})
 
 export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const { username, email, password, nickname, status = 1, roleIds } = body
-
-  if (!username || !password || !email) {
-    return fail('用户名、邮箱和密码不能为空')
+  const guard = await requireRequestAuth('user:create')
+  if (guard.response) {
+    return guard.response
   }
 
-  if (!USERNAME_REGEX.test(username)) {
-    return fail('用户名只能包含英文和数字，且必须英文开头')
+  const parsed = await parseJsonBody(request, createUserSchema)
+  if (!parsed.success) {
+    return parsed.response
   }
 
-  if (!EMAIL_REGEX.test(email)) {
-    return fail('邮箱格式不正确')
-  }
+  const { username, email, password, nickname, status, roleIds } = parsed.data
 
   const existingUsername = db.select({ id: sysUser.id }).from(sysUser).where(eq(sysUser.username, username)).get()
   if (existingUsername) {
@@ -39,11 +53,11 @@ export async function POST(request: NextRequest) {
     username,
     email,
     password: hashed,
-    nickname: nickname || null,
+    nickname: normalizeOptionalText(nickname) ?? null,
     status,
   }).run()
 
-  if (roleIds && roleIds.length > 0) {
+  if (roleIds.length > 0) {
     const userId = Number(result.lastInsertRowid)
     for (const roleId of roleIds) {
       db.insert(sysUserRole).values({ userId, roleId }).run()

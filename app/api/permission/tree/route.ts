@@ -1,3 +1,4 @@
+import { requireRequestAuth } from '@/lib/api/auth'
 import { db } from '@/lib/db'
 import { sysPermission } from '@/lib/db/schema'
 import { ok } from '@/lib/result'
@@ -27,6 +28,11 @@ function buildTree(all: Permission[], parentId: number): TreeNode[] {
 }
 
 export async function POST() {
+  const guard = await requireRequestAuth(['permission:list', 'role:assign'])
+  if (guard.response) {
+    return guard.response
+  }
+
   const all = db.select().from(sysPermission).orderBy(asc(sysPermission.sort)).all()
   const tree = buildTree(all, 0)
   return ok(tree)

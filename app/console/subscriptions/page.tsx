@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getSubscriptions, deleteSubscription, updateSubscription } from '@/services/subscriptions'
-import type { Subscription } from '@/types'
+import type { EntityId, Subscription } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import {
@@ -22,11 +22,11 @@ export default function SubscriptionListPage() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
-  const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [deleteId, setDeleteId] = useState<EntityId | null>(null)
+  const [togglingId, setTogglingId] = useState<EntityId | null>(null)
   const pageSize = 10
 
-  const fetchList = async () => {
+  const fetchList = useCallback(async () => {
     setLoading(true)
     try {
       const res = await getSubscriptions({ page, size: pageSize })
@@ -35,9 +35,9 @@ export default function SubscriptionListPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [page])
 
-  useEffect(() => { fetchList() }, [page])
+  useEffect(() => { void fetchList() }, [fetchList])
 
   const handleDelete = async () => {
     if (deleteId === null) return
@@ -46,7 +46,7 @@ export default function SubscriptionListPage() {
     fetchList()
   }
 
-  const handleToggleStatus = async (id: string, currentStatus: number) => {
+  const handleToggleStatus = async (id: EntityId, currentStatus: number) => {
     setTogglingId(id)
     try {
       await updateSubscription({ id, status: currentStatus === 1 ? 0 : 1 })

@@ -1,16 +1,28 @@
 import { NextRequest } from 'next/server'
+import { requireRequestAuth } from '@/lib/api/auth'
+import { subscriptionPayloadSchema } from '@/lib/api/schemas'
+import { createIdSchema, parseJsonBody } from '@/lib/api/validation'
 import { db } from '@/lib/db'
 import { sysSubscription, sysSubscriptionNode } from '@/lib/db/schema'
 import { ok, fail } from '@/lib/result'
 import { eq } from 'drizzle-orm'
 
-export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const { id, name, remark, status, nodeIds } = body
+const updateSubscriptionSchema = subscriptionPayloadSchema.partial().extend({
+  id: createIdSchema('订阅ID'),
+})
 
-  if (!id) {
-    return fail('缺少订阅ID')
+export async function POST(request: NextRequest) {
+  const guard = await requireRequestAuth('subscription:update')
+  if (guard.response) {
+    return guard.response
   }
+
+  const parsed = await parseJsonBody(request, updateSubscriptionSchema)
+  if (!parsed.success) {
+    return parsed.response
+  }
+
+  const { id, name, remark, status, nodeIds } = parsed.data
 
   const existing = db
     .select()
@@ -34,7 +46,7 @@ export async function POST(request: NextRequest) {
       .run()
   }
 
-  if (nodeIds !== undefined && Array.isArray(nodeIds)) {
+  if (nodeIds !== undefined) {
     db.delete(sysSubscriptionNode)
       .where(eq(sysSubscriptionNode.subscriptionId, id))
       .run()
