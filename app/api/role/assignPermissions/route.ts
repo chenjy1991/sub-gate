@@ -4,8 +4,9 @@ import { requireRequestAuth } from '@/lib/api/auth'
 import { createIdArraySchema } from '@/lib/api/schemas'
 import { createIdSchema, parseJsonBody } from '@/lib/api/validation'
 import { db } from '@/lib/db'
+import { getCurrentDateTime } from '@/lib/datetime'
 import { ok } from '@/lib/result'
-import { sysRolePermission } from '@/lib/db/schema'
+import { sysRole, sysRolePermission } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
 const assignPermissionsSchema = z.object({
@@ -33,6 +34,11 @@ export async function POST(request: NextRequest) {
       db.insert(sysRolePermission).values({ roleId, permissionId }).run()
     }
   }
+
+  db.update(sysRole)
+    .set({ updatedAt: getCurrentDateTime() })
+    .where(eq(sysRole.id, roleId))
+    .run()
 
   return ok()
 }

@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
-import { sysUser, sysSubscription, sysSubscriptionNode, sysSubscriptionRole, sysSubscriptionUser, sysUserRole, sysNode } from '@/lib/db/schema'
+import { sysUser, sysSubscription, sysSubscriptionNode, sysSubscriptionRole, sysSubscriptionUser, sysUserRole, sysNode, sysSubscriptionAccessLog } from '@/lib/db/schema'
+import { getCurrentDateTime } from '@/lib/datetime'
+import { getRequestIp, getRequestUserAgent } from '@/lib/request-meta'
 import { eq, inArray, and } from 'drizzle-orm'
 import { generateBase64, generateClash, generateSurge, generateQuantumultX } from '@/lib/node/subscription'
 
@@ -101,6 +103,19 @@ export async function GET(
       content = generateBase64(nodes)
       contentType = 'text/plain; charset=utf-8'
       break
+  }
+
+  try {
+    db.insert(sysSubscriptionAccessLog).values({
+      subscriptionId,
+      userId,
+      accessType: type,
+      ip: getRequestIp(request),
+      userAgent: getRequestUserAgent(request),
+      createdAt: getCurrentDateTime(),
+    }).run()
+  } catch (error) {
+    console.error('记录订阅访问历史失败', error)
   }
 
   return new Response(content, {

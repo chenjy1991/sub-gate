@@ -1,31 +1,45 @@
+import { eq } from 'drizzle-orm'
 import { db } from './index'
-import { sysUser, sysRole, sysPermission, sysUserRole, sysRolePermission } from './schema'
+import { sysUser, sysRole, sysPermission } from './schema'
 import { hashPassword } from '../auth'
+import { normalizeRoleCode } from '@/lib/role'
+import { ensureAdminAuthorizationData } from './bootstrap'
 import { runMigrations } from './migrate'
 
 function seedRoles() {
-  const existing = db.select().from(sysRole).all()
-  if (existing.length > 0) return
-  db.insert(sysRole).values([
+  const existingCodes = new Set(
+    db.select({ code: sysRole.code }).from(sysRole).all().map(role => normalizeRoleCode(role.code))
+  )
+
+  const missingRoles = [
     { id: 1, name: '管理员', code: 'ADMIN', remark: '系统管理员', status: 1 },
     { id: 2, name: 'VIP用户', code: 'VIP', remark: 'VIP用户', status: 1 },
     { id: 3, name: '注册用户', code: 'USER', remark: '普通注册用户', status: 1 },
-  ]).run()
+  ].filter(role => !existingCodes.has(normalizeRoleCode(role.code)))
+
+  if (missingRoles.length > 0) {
+    db.insert(sysRole).values(missingRoles).run()
+  }
 }
 
 function seedAdmin() {
-  const existing = db.select().from(sysUser).all()
-  if (existing.length > 0) return
-  const hash = hashPassword('123456')
-  db.insert(sysUser).values({
-    id: 1,
-    username: 'admin',
-    email: 'admin@subgate.com',
-    password: hash,
-    nickname: '管理员',
-    status: 1,
-  }).run()
-  db.insert(sysUserRole).values({ userId: 1, roleId: 1 }).run()
+  const existingAdmin = db
+    .select({ id: sysUser.id })
+    .from(sysUser)
+    .where(eq(sysUser.username, 'admin'))
+    .get()
+
+  if (!existingAdmin) {
+    const hash = hashPassword('123456')
+    db.insert(sysUser).values({
+      id: 1,
+      username: 'admin',
+      email: 'admin@subgate.com',
+      password: hash,
+      nickname: '管理员',
+      status: 1,
+    }).run()
+  }
 }
 
 function seedPermissions() {
@@ -71,12 +85,6 @@ function seedPermissions() {
     { id: 100062, parentId: 100060, name: '保存配置', code: 'mail:config', type: 'button', sort: 2 },
     { id: 100063, parentId: 100060, name: '发送测试', code: 'mail:test', type: 'button', sort: 3 },
   ]).run()
-
-  // 给 ADMIN 角色分配所有权限
-  const allPerms = db.select().from(sysPermission).all()
-  for (const perm of allPerms) {
-    db.insert(sysRolePermission).values({ roleId: 1, permissionId: perm.id }).run()
-  }
 }
 
 export function seed() {
@@ -84,6 +92,7 @@ export function seed() {
   seedRoles()
   seedAdmin()
   seedPermissions()
+  ensureAdminAuthorizationData()
   console.log('数据库初始化完成')
 }
 

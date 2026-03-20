@@ -5,11 +5,10 @@ import { parseJsonBody } from '@/lib/api/validation'
 import { hashPassword, signActivationToken } from '@/lib/auth'
 import { getSiteDomain } from '@/lib/config'
 import { db } from '@/lib/db'
+import { findRoleIdByCode } from '@/lib/db/bootstrap'
 import { sysUser, sysUserRole } from '@/lib/db/schema'
 import { sendMail, buildActivationMailHtml } from '@/lib/mail'
 import { ok, fail } from '@/lib/result'
-
-const USER_ROLE_ID = 3
 
 export async function POST(request: NextRequest) {
   const parsed = await parseJsonBody(request, registerSchema)
@@ -34,6 +33,11 @@ export async function POST(request: NextRequest) {
     return fail('系统未配置站点域名，无法发送激活邮件，请联系管理员')
   }
 
+  const userRoleId = findRoleIdByCode('USER')
+  if (!userRoleId) {
+    return fail('系统角色初始化不完整，请联系管理员')
+  }
+
   const hashed = hashPassword(password)
   const result = db.insert(sysUser).values({
     username,
@@ -44,7 +48,7 @@ export async function POST(request: NextRequest) {
   }).run()
 
   const userId = Number(result.lastInsertRowid)
-  db.insert(sysUserRole).values({ userId, roleId: USER_ROLE_ID }).run()
+  db.insert(sysUserRole).values({ userId, roleId: userRoleId }).run()
 
   try {
     const token = await signActivationToken(userId)

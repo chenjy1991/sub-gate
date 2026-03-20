@@ -3,7 +3,8 @@ import { requireRequestAuth } from '@/lib/api/auth'
 import { createEntityIdSchema } from '@/lib/api/schemas'
 import { parseJsonBody } from '@/lib/api/validation'
 import { db } from '@/lib/db'
-import { sysNode } from '@/lib/db/schema'
+import { getCurrentDateTime } from '@/lib/datetime'
+import { sysNode, sysNodeCheckLog } from '@/lib/db/schema'
 import { ok, fail } from '@/lib/result'
 import { eq } from 'drizzle-orm'
 import net from 'net'
@@ -52,6 +53,29 @@ export async function POST(req: NextRequest) {
   if (!node) return fail('节点不存在')
 
   const result = await checkNode(node.address, node.port)
+
+  const checkedAt = getCurrentDateTime()
+
+  try {
+    db.insert(sysNodeCheckLog).values({
+      nodeId: node.id,
+      isReachable: result.reachable ? 1 : 0,
+      latency: result.latency,
+      createdAt: checkedAt,
+    }).run()
+
+    db.update(sysNode)
+      .set({
+        lastCheckedAt: checkedAt,
+        lastCheckStatus: result.reachable ? 1 : 0,
+        lastCheckLatency: result.latency,
+        updatedAt: checkedAt,
+      })
+      .where(eq(sysNode.id, node.id))
+      .run()
+  } catch (error) {
+    console.error('记录节点检测历史失败', error)
+  }
 
   return ok(result)
 }

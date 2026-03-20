@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { requireRequestAuth } from '@/lib/api/auth'
 import { createIdSchema, normalizeOptionalText, parseJsonBody, statusSchema } from '@/lib/api/validation'
 import { db } from '@/lib/db'
+import { getCurrentDateTime } from '@/lib/datetime'
 import { ok } from '@/lib/result'
 import { sysRole } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
@@ -35,6 +36,7 @@ export async function POST(request: NextRequest) {
   if (status !== undefined && status !== null) updates.status = status
 
   if (Object.keys(updates).length > 0) {
+    updates.updatedAt = getCurrentDateTime()
     db.update(sysRole).set(updates).where(eq(sysRole.id, id)).run()
   }
 

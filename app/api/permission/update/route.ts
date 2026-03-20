@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { requireRequestAuth } from '@/lib/api/auth'
 import { createIdSchema, normalizeOptionalText, parseJsonBody } from '@/lib/api/validation'
 import { db } from '@/lib/db'
+import { getCurrentDateTime } from '@/lib/datetime'
 import { sysPermission } from '@/lib/db/schema'
 import { ok, fail } from '@/lib/result'
 import { eq } from 'drizzle-orm'
@@ -42,6 +43,7 @@ export async function POST(request: NextRequest) {
     return fail('缺少可更新字段')
   }
 
+  fields.updatedAt = getCurrentDateTime()
   db.update(sysPermission).set(fields).where(eq(sysPermission.id, id)).run()
 
   return ok()

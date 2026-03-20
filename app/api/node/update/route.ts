@@ -3,6 +3,7 @@ import { requireRequestAuth } from '@/lib/api/auth'
 import { nodePayloadSchema } from '@/lib/api/schemas'
 import { createIdSchema, parseJsonBody } from '@/lib/api/validation'
 import { db } from '@/lib/db'
+import { getCurrentDateTime } from '@/lib/datetime'
 import { sysNode } from '@/lib/db/schema'
 import { ok, fail } from '@/lib/result'
 import { eq } from 'drizzle-orm'
@@ -28,7 +29,10 @@ export async function POST(req: NextRequest) {
     return fail('缺少可更新字段')
   }
 
-  db.update(sysNode).set(fields).where(eq(sysNode.id, id)).run()
+  db.update(sysNode)
+    .set({ ...fields, updatedAt: getCurrentDateTime() })
+    .where(eq(sysNode.id, id))
+    .run()
 
   return ok()
 }

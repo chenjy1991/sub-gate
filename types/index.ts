@@ -51,6 +51,12 @@ export interface ChartDataPoint {
   label?: string
 }
 
+export interface DashboardOverview {
+  stats: DashboardStats
+  userGrowthTrend: ChartDataPoint[]
+  loginTrend: ChartDataPoint[]
+}
+
 export interface PageResult<T> {
   list: T[]
   total: number

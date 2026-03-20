@@ -4,7 +4,8 @@ import { requireRequestAuth } from '@/lib/api/auth'
 import { createIdArraySchema } from '@/lib/api/schemas'
 import { createIdSchema, parseJsonBody } from '@/lib/api/validation'
 import { db } from '@/lib/db'
-import { sysSubscriptionRole } from '@/lib/db/schema'
+import { getCurrentDateTime } from '@/lib/datetime'
+import { sysSubscription, sysSubscriptionRole } from '@/lib/db/schema'
 import { ok } from '@/lib/result'
 import { eq } from 'drizzle-orm'
 
@@ -35,6 +36,11 @@ export async function POST(request: NextRequest) {
       .values(roleIds.map((roleId: number) => ({ subscriptionId: id, roleId })))
       .run()
   }
+
+  db.update(sysSubscription)
+    .set({ updatedAt: getCurrentDateTime() })
+    .where(eq(sysSubscription.id, id))
+    .run()
 
   return ok()
 }

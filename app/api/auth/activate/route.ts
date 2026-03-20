@@ -4,6 +4,7 @@ import { parseJsonBody } from '@/lib/api/validation'
 import { db } from '@/lib/db'
 import { ok, fail } from '@/lib/result'
 import { sysUser } from '@/lib/db/schema'
+import { getCurrentDateTime } from '@/lib/datetime'
 import { eq } from 'drizzle-orm'
 import { verifyActivationToken } from '@/lib/auth'
 
@@ -33,7 +34,12 @@ export async function POST(request: NextRequest) {
     return fail('账号已激活，无需重复操作')
   }
 
-  db.update(sysUser).set({ status: 1 }).where(eq(sysUser.id, payload.userId)).run()
+  const activatedAt = getCurrentDateTime()
+
+  db.update(sysUser)
+    .set({ status: 1, activatedAt, updatedAt: activatedAt })
+    .where(eq(sysUser.id, payload.userId))
+    .run()
 
   return ok()
 }

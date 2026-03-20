@@ -5,7 +5,10 @@ import { getUserPermissionCodes, getUserRoleCodes } from '@/lib/api/auth'
 import { parseJsonBody } from '@/lib/api/validation'
 import { verifyPassword, signToken, setAuthCookie } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { sysUser } from '@/lib/db/schema'
+import { sysLoginLog, sysUser } from '@/lib/db/schema'
+import { getCurrentDateTime } from '@/lib/datetime'
+import { resolvePrimaryRole } from '@/lib/role'
+import { getRequestIp, getRequestUserAgent } from '@/lib/request-meta'
 import { ok, fail } from '@/lib/result'
 
 export async function POST(request: NextRequest) {
@@ -35,18 +38,28 @@ export async function POST(request: NextRequest) {
   }
 
   const roleCodes = getUserRoleCodes(user.id)
-
-  // Determine primary role
-  let role: string
-  if (roleCodes.includes('ADMIN')) {
-    role = 'admin'
-  } else if (roleCodes.includes('VIP')) {
-    role = 'vip'
-  } else {
-    role = 'user'
-  }
-
+  const role = resolvePrimaryRole(roleCodes)
   const permissions = getUserPermissionCodes(user.id, roleCodes)
+
+  const loginAt = getCurrentDateTime()
+  const ip = getRequestIp(request)
+  const userAgent = getRequestUserAgent(request)
+
+  try {
+    db.update(sysUser)
+      .set({ lastLoginAt: loginAt, updatedAt: loginAt })
+      .where(eq(sysUser.id, user.id))
+      .run()
+
+    db.insert(sysLoginLog).values({
+      userId: user.id,
+      ip,
+      userAgent,
+      createdAt: loginAt,
+    }).run()
+  } catch (error) {
+    console.error('记录登录历史失败', error)
+  }
 
   const token = await signToken({ userId: user.id, username: user.username, role })
   await setAuthCookie(token)

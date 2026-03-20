@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getStats, getLineChartData, getBarChartData } from '@/services/dashboard'
-import type { DashboardStats, ChartDataPoint } from '@/types'
+import { getDashboardOverview } from '@/services/dashboard'
+import type { DashboardOverview, DashboardStats, ChartDataPoint } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Users, TrendingUp, Shield, LogIn } from 'lucide-react'
 import { PermGuard } from '@/components/common/PermGuard'
@@ -20,7 +20,7 @@ import {
 
 const statsCards = [
   { key: 'totalUsers', label: '总用户数', icon: Users, color: 'text-blue-600' },
-  { key: 'activeUsers', label: '活跃用户', icon: TrendingUp, color: 'text-green-600' },
+  { key: 'activeUsers', label: '近7天活跃用户', icon: TrendingUp, color: 'text-green-600' },
   { key: 'totalRoles', label: '角色数量', icon: Shield, color: 'text-purple-600' },
   { key: 'todayLogins', label: '今日登录', icon: LogIn, color: 'text-orange-600' },
 ] as const
@@ -47,7 +47,7 @@ function LineChartCard({ data }: { data: ChartDataPoint[] }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm font-medium">用户增长趋势</CardTitle>
+        <CardTitle className="text-sm font-medium">近7天用户增长</CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={240}>
@@ -68,7 +68,7 @@ function BarChartCard({ data }: { data: ChartDataPoint[] }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm font-medium">每日登录次数</CardTitle>
+        <CardTitle className="text-sm font-medium">近7天登录次数</CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={240}>
@@ -86,32 +86,59 @@ function BarChartCard({ data }: { data: ChartDataPoint[] }) {
 }
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [lineData, setLineData] = useState<ChartDataPoint[]>([])
-  const [barData, setBarData] = useState<ChartDataPoint[]>([])
+  const [overview, setOverview] = useState<DashboardOverview | null>(null)
+  const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    Promise.all([getStats(), getLineChartData(), getBarChartData()]).then(([s, l, b]) => {
-      setStats(s)
-      setLineData(l)
-      setBarData(b)
-      setLoading(false)
-    })
+    let cancelled = false
+
+    getDashboardOverview(7)
+      .then(data => {
+        if (cancelled) {
+          return
+        }
+        setOverview(data)
+      })
+      .catch((caughtError: unknown) => {
+        if (cancelled) {
+          return
+        }
+        setError(caughtError instanceof Error ? caughtError.message : '看板加载失败')
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   if (loading) {
     return <div className="flex h-40 items-center justify-center text-zinc-400">加载中...</div>
   }
 
+  if (error) {
+    return (
+      <PermGuard code="dashboard">
+        <div className="flex h-40 items-center justify-center rounded-lg border border-dashed text-sm text-red-500">
+          {error}
+        </div>
+      </PermGuard>
+    )
+  }
+
   return (
     <PermGuard code="dashboard">
       <div className="space-y-6">
         <h1 className="text-xl font-semibold">数据看板</h1>
-        {stats && <StatsCards stats={stats} />}
+        {overview ? <StatsCards stats={overview.stats} /> : null}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <LineChartCard data={lineData} />
-          <BarChartCard data={barData} />
+          <LineChartCard data={overview?.userGrowthTrend ?? []} />
+          <BarChartCard data={overview?.loginTrend ?? []} />
         </div>
       </div>
     </PermGuard>

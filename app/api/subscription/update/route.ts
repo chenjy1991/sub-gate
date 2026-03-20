@@ -3,6 +3,7 @@ import { requireRequestAuth } from '@/lib/api/auth'
 import { subscriptionPayloadSchema } from '@/lib/api/schemas'
 import { createIdSchema, parseJsonBody } from '@/lib/api/validation'
 import { db } from '@/lib/db'
+import { getCurrentDateTime } from '@/lib/datetime'
 import { sysSubscription, sysSubscriptionNode } from '@/lib/db/schema'
 import { ok, fail } from '@/lib/result'
 import { eq } from 'drizzle-orm'
@@ -35,9 +36,27 @@ export async function POST(request: NextRequest) {
   }
 
   const updates: Record<string, unknown> = {}
-  if (name !== undefined) updates.name = name
-  if (remark !== undefined) updates.remark = remark
-  if (status !== undefined) updates.status = status
+  let touched = false
+  if (name !== undefined) {
+    updates.name = name
+    touched = true
+  }
+  if (remark !== undefined) {
+    updates.remark = remark
+    touched = true
+  }
+  if (status !== undefined) {
+    updates.status = status
+    touched = true
+  }
+
+  if (nodeIds !== undefined) {
+    touched = true
+  }
+
+  if (touched) {
+    updates.updatedAt = getCurrentDateTime()
+  }
 
   if (Object.keys(updates).length > 0) {
     db.update(sysSubscription)

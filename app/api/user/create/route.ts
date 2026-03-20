@@ -13,6 +13,7 @@ import {
 } from '@/lib/api/validation'
 import { hashPassword } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { getCurrentDateTime } from '@/lib/datetime'
 import { sysUser, sysUserRole } from '@/lib/db/schema'
 import { ok, fail } from '@/lib/result'
 
@@ -49,12 +50,14 @@ export async function POST(request: NextRequest) {
   }
 
   const hashed = hashPassword(password)
+  const activatedAt = status === 1 ? getCurrentDateTime() : null
   const result = db.insert(sysUser).values({
     username,
     email,
     password: hashed,
     nickname: normalizeOptionalText(nickname) ?? null,
     status,
+    activatedAt,
   }).run()
 
   if (roleIds.length > 0) {

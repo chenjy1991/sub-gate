@@ -2,7 +2,9 @@ import type { NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
 import { getAuthFromCookie, type JwtPayload } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { ensureAdminAuthorizationData } from '@/lib/db/bootstrap'
 import { sysPermission, sysRole, sysRolePermission, sysUser, sysUserRole } from '@/lib/db/schema'
+import { isAdminRoleCode } from '@/lib/role'
 import { forbidden, unauthorized } from '@/lib/result'
 
 interface PermissionNode {
@@ -41,6 +43,8 @@ function getAncestorCodes(code: string, allPermissions: PermissionNode[]): strin
 }
 
 export function getUserRoleCodes(userId: number): string[] {
+  ensureAdminAuthorizationData()
+
   return db
     .select({ code: sysRole.code })
     .from(sysUserRole)
@@ -51,7 +55,7 @@ export function getUserRoleCodes(userId: number): string[] {
 }
 
 export function getUserPermissionCodes(userId: number, roleCodes = getUserRoleCodes(userId)): string[] {
-  if (roleCodes.includes('ADMIN')) {
+  if (roleCodes.some(isAdminRoleCode)) {
     return ['*']
   }
 

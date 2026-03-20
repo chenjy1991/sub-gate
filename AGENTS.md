@@ -95,9 +95,10 @@ docker run -d -p 3000:3000 -v ./data:/app/data image-name  # 单行启动
 │   │   ├── permissions/page.tsx
 │   │   ├── nodes/{page,new/page,[id]/edit/page}.tsx
 │   │   └── subscriptions/{page,new/page,[id]/page,[id]/edit/page}.tsx
-│   └── api/                          # API Route Handlers（46 个端点）
+│   └── api/                          # API Route Handlers（47 个端点）
 │       ├── auth/{activate,login,logout,register,resend-activation}/route.ts
 │       ├── config/{get,save}/route.ts
+│       ├── dashboard/overview/route.ts
 │       ├── mail/test/route.ts
 │       ├── user/{list,getById,create,update,delete,me,change-password}/route.ts
 │       ├── role/{list,create,update,delete,assignPermissions,getPermissionIds}/route.ts
@@ -110,7 +111,7 @@ docker run -d -p 3000:3000 -v ./data:/app/data image-name  # 单行启动
 │   ├── db/
 │   │   ├── index.ts                  # Drizzle 实例 + SQLite 连接
 │   │   ├── migrate.ts                # Drizzle migration 执行入口
-│   │   ├── schema.ts                 # 11 张表定义
+│   │   ├── schema.ts                 # 14 张表定义
 │   │   └── seed.ts                   # migration 后写入种子数据
 │   ├── api/
 │   │   ├── auth.ts                   # API 鉴权 / 权限校验工具
@@ -118,10 +119,13 @@ docker run -d -p 3000:3000 -v ./data:/app/data image-name  # 单行启动
 │   │   └── validation.ts             # Route Handler 校验工具
 │   ├── auth.ts                       # JWT 签发/验证、bcrypt、Cookie 操作
 │   ├── config.ts                     # sys_config 读取工具
+│   ├── dashboard.ts                  # 数据看板聚合查询
+│   ├── datetime.ts                   # 统一时间格式工具
 │   ├── jwt.ts                        # JWT Secret 配置收口
 │   ├── mail.ts                       # 邮件发送与模板
 │   ├── result.ts                     # ok() / fail() / pageResult() 响应工具
 │   ├── request.ts                    # 前端通用请求函数
+│   ├── request-meta.ts               # NextRequest IP / UA 提取工具
 │   ├── permission.ts                 # 前端权限判断工具
 │   ├── utils.ts                      # cn() 工具
 │   └── node/
@@ -140,7 +144,7 @@ docker run -d -p 3000:3000 -v ./data:/app/data image-name  # 单行启动
 ├── services/                         # 前端 API 调用层
 │   ├── auth.ts, users.ts, roles.ts, permissions.ts, config.ts
 │   ├── nodes.ts, subscriptions.ts, mySubscriptions.ts
-│   └── dashboard.ts                  # 仍为 mock
+│   └── dashboard.ts                  # 数据看板真实数据请求
 ├── middleware.ts                     # Next.js 路由中间件（JWT 鉴权）
 ├── tests/                            # node:test 最小测试集
 ├── next.config.ts
@@ -220,7 +224,7 @@ docker run -d -p 3000:3000 -v ./data:/app/data image-name  # 单行启动
 - **数据库初始化**：通过 `drizzle/` migration 建表，`pnpm db:migrate` 执行；`pnpm db:seed` 在 migration 后写入种子数据
 - **路由鉴权**：`middleware.ts` 拦截 `/api/*` 和 `/console/*`，免鉴权路径：`/api/auth/login`、`/api/auth/register`、`/api/auth/activate`、`/api/auth/resend-activation`、`/api/subscribe/*`、`/login`、`/register`、`/activate`
 - **前端请求**：`lib/request.ts` 自动处理 401 跳转登录，Cookie 自动携带无需手动设置 header
-- **Dashboard mock**：`services/dashboard.ts` 仍为 mock 数据，未对接真实 API
+- **Dashboard 真实数据**：`services/dashboard.ts` 已对接 `POST /api/dashboard/overview`，登录/节点检测/订阅访问会持续积累看板数据
 - **系统配置**：`sys_config` 统一承载邮件配置与站点配置（JSON 字符串）
 - **节点链接解析**：支持 vmess/vless/trojan/ss/hysteria2 五种协议
 - **订阅输出格式**：支持 base64/clash/surge/quantumultx 四种格式
@@ -257,3 +261,4 @@ docker run -d -p 3000:3000 -v ./data:/app/data image-name  # 单行启动
 | 013 | 邮件发送配置 | `specs/013-mail-config/` |
 | 014 | 用户注册 | `specs/014-user-registration/` |
 | 015 | 项目加固与工程化优化 | `specs/015-project-hardening/` |
+| 016 | 数据看板真实数据化 | `specs/016-dashboard-real-data/` |
